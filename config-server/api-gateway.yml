@@ -7,11 +7,6 @@ spring:
       discovery:
         locator:
           enabled: true
-  eureka:
-    client:
-      service-url:
-        defaultZone: http://localhost:8761/eureka
-
       routes:
         - id: auth-server
           uri: lb://AUTH-SERVER
@@ -22,3 +17,9 @@ spring:
           uri: lb://ACCOUNT-SERVICE
           predicates:
             - Path=/accounts/**
+            -
+  eureka:
+    client:
+      service-url:
+        defaultZone: http://localhost:8761/eureka
+
