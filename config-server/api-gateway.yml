@@ -9,8 +9,8 @@ spring:
           enabled: true
 
       routes:
-        - id: auth-service
-          uri: lb://AUTH-SERVICE
+        - id: auth-server
+          uri: lb://AUTH-SERVER
           predicates:
             - Path=/auth/**
 
