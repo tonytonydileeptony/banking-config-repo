@@ -17,7 +17,7 @@ spring:
           uri: lb://ACCOUNT-SERVICE
           predicates:
             - Path=/accounts/**
-            -
+
   eureka:
     client:
       service-url:
