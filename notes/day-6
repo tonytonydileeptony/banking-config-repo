@@ -1,0 +1,1249 @@
+What is System Design?
+
+System Design = The process of designing how a software system works internally to handle real-world scale, performance, failures, and users.
+
+It answers:
+
+How will the system be structured?
+
+How will components communicate?
+
+How will it scale to millions of users?
+
+How will data be stored safely?
+
+How will failures be handled?
+
+Simple Definition
+
+System Design is about building a system that is scalable, reliable, secure, and efficient.
+
+Example — Banking Application
+
+When designing a banking system, we must decide:
+
+How accounts are stored
+
+How money transfer works safely
+
+How to prevent double withdrawal
+
+How system handles 1 lakh transactions/sec
+
+How services communicate
+
+How data consistency is maintained
+
+This entire planning = System Design
+
+Main Goals of System Design
+
+Scalability → Handle growth (100 → 1M users)
+
+Reliability → System should not crash
+
+Availability → System should be up 24/7
+
+Performance → Fast response (<200ms)
+
+Consistency → Correct data (very important in banking)
+
+Security → Prevent fraud / data leaks
+
+Maintainability → Easy to update & extend
+
+Two Types of Design
+1. High-Level Design (HLD)
+
+Big picture architecture.
+
+Example:
+
+API Gateway
+
+Microservices
+
+Database
+
+Load Balancer
+
+Cache
+
+Messaging (Kafka)
+
+Focus: System components & communication
+
+2. Low-Level Design (LLD)
+
+Internal logic & classes.
+
+Example:
+
+Account entity
+
+Transaction service
+
+Transfer flow
+
+Locking mechanism
+
+DB schema
+
+Focus: Code-level design
+
+System Design vs Coding
+Coding	System Design
+Writes logic	Designs system
+Small scope	Large scale
+Classes & methods	Services & architecture
+Single user	Millions of users
+Real-Life Example
+
+Without Design:
+
+Two users withdraw money simultaneously
+
+Balance becomes negative ❌
+
+With Proper System Design:
+
+Locking / Transaction used
+
+Correct balance maintained ✔
+
+Where System Design is Used
+
+Banking systems
+
+Payment apps (UPI, Paytm)
+
+E-commerce (Amazon, Flipkart)
+
+Social media (Instagram, Facebook)
+
+Ride apps (Uber, Ola)
+
+Streaming (Netflix, YouTube)
+
+Interview Questions
+
+Q1: What is System Design?
+Designing scalable, reliable, and efficient systems.
+
+Q2: Difference between HLD & LLD?
+HLD = architecture, LLD = internal implementation.
+
+Q3: Why important for backend engineers?
+To build systems that handle real-world scale & failures.
+
+In Your Project (Important)
+
+You are designing:
+
+Monolith → Microservices
+
+Account Service
+
+Transaction Service
+
+Safe money transfer
+
+Concurrency control
+
+Idempotency
+
+High-scale architecture
+Functional vs Non-Functional Requirements
+1️⃣ Functional Requirements (What system should DO)
+
+These describe features / business logic of the system.
+
+👉 Simply: User actions + system behavior
+
+Banking App — Functional Requirements
+
+Create User
+
+Open Account
+
+Deposit Money
+
+Withdraw Money
+
+Transfer Money
+
+Check Balance
+
+View Transaction History
+
+KYC Verification
+
+Block / Unblock Account
+
+Send Notification (SMS/Email)
+
+These define WHAT the system must perform.
+
+2️⃣ Non-Functional Requirements (How system should BEHAVE)
+
+These describe quality, performance, and constraints of the system.
+
+👉 Simply: System properties / performance / rules
+
+Banking App — Non-Functional Requirements
+
+High Availability (24×7 uptime)
+
+Strong Consistency (money must be correct)
+
+Performance (<200 ms response)
+
+Scalability (millions of users)
+
+Security (no fraud, encrypted data)
+
+Reliability (no data loss)
+
+Fault Tolerance (system survives failures)
+
+Auditability (track every transaction)
+
+Concurrency handling (no double debit)
+
+These define HOW WELL the system works.
+
+Key Differences
+Functional	Non-Functional
+What system does	How system behaves
+Features	Quality attributes
+User-visible	System-level
+Business logic	Performance / security / scale
+Real Interview Thinking (Important)
+
+When asked to design a system, always clarify NFR first:
+
+Example:
+
+“Should system prioritize Consistency or Availability?”
+
+In Banking:
+Consistency > Availability (CAP principle)
+
+Example — Money Transfer
+Functional
+
+Transfer ₹1000 from A → B
+
+Non-Functional
+
+Must be atomic (no partial transfer)
+
+Must be consistent
+
+Must prevent duplicate transfer
+
+Must handle 10,000 transfers/sec
+
+Must be secure
+
+Interview Questions
+
+Q1: Difference between Functional & Non-Functional?
+Functional = features, Non-Functional = system quality.
+
+Q2: Which is more important?
+Both. Functional defines behavior, Non-Functional defines system strength.
+
+Q3: NFR for banking?
+
+Consistency
+
+Reliability
+
+Security
+
+Availability
+
+Performance
+
+In Your Banking Project
+
+You already implemented some Functional:
+
+Account creation
+
+Debit / Credit
+
+Balance
+
+Soon we will implement NFR:
+
+Transactions (Atomic)
+
+Concurrency control
+
+Idempotency
+
+Logging & audit
+
+Performance & scaling
+High Level Design (HLD) — Banking Architecture (25 min)
+What is HLD?
+
+High Level Design = Big-picture architecture of the system.
+
+It defines:
+
+Major components
+
+Services
+
+Databases
+
+Communication
+
+Data flow
+
+👉 Not code, only system structure
+
+Banking System — Core Components
+Client (Web / Mobile)
+        ↓
+   API Gateway
+        ↓
+ ---------------------------
+|   User Service            |
+|   Account Service         |
+|   Transaction Service     |
+|   Notification Service    |
+ ---------------------------
+        ↓
+     Database
+
+Component Explanation
+1. Client
+
+Mobile app / Web app
+
+Sends API requests
+
+Example: Transfer money
+
+2. API Gateway
+
+Single entry point for all requests.
+
+Responsibilities:
+
+Authentication (JWT)
+
+Routing to services
+
+Rate limiting
+
+Logging
+
+Security
+
+Example:
+
+POST /transfer → Transaction Service
+GET /balance → Account Service
+
+3. User Service
+
+Manages:
+
+User profile
+
+KYC verification
+
+Authentication
+
+DB: users
+
+4. Account Service
+
+Manages:
+
+Account creation
+
+Balance
+
+Debit / Credit
+
+Account status
+
+DB: accounts
+
+5. Transaction Service
+
+Manages:
+
+Money transfer
+
+Transaction history
+
+Atomic transfer
+
+Idempotency
+
+DB: transactions
+
+6. Notification Service
+
+Handles:
+
+SMS
+
+Email
+
+Alerts after transfer
+
+Async (Kafka / Queue)
+
+7. Database
+
+Tables:
+
+Users
+
+Accounts
+
+Transactions
+
+Audit logs
+
+Request Flow — Transfer Money
+Client → API Gateway → Transaction Service
+       → Debit sender (Account Service)
+       → Credit receiver (Account Service)
+       → Save transaction
+       → Send notification
+
+
+Must be Atomic + Consistent
+
+Scaling Architecture
+
+Later we add:
+
+Load Balancer
+
+Multiple service instances
+
+Cache (Redis)
+
+Message Queue (Kafka)
+
+Circuit Breaker
+
+Distributed Tracing
+
+You will build all these step-by-step.
+
+Monolith → Microservices Mapping
+Current Module	Future Microservice
+User	user-service
+Account	account-service
+Transaction	transaction-service
+Notification	notification-service
+
+Right now → Monolith with clean separation ✔
+
+Interview Questions
+
+Q1: What is API Gateway?
+Single entry point for routing, security, rate limiting.
+
+Q2: Why separate Account & Transaction service?
+Different responsibilities, scalability, maintainability.
+
+Q3: Why Notification async?
+Non-critical, improves performance.
+
+Q4: Where is consistency handled?
+Transaction service + DB transactions.
+
+You Completed
+
+System Design basics
+
+Functional vs Non-Functional
+
+HLD Banking Architecture ✔
+Scalability Basics (15 min)
+What is Scalability?
+
+Scalability = Ability of a system to handle increasing load (users, requests, data) without breaking or slowing down.
+
+Example:
+
+Today → 100 users
+
+Tomorrow → 10 lakh users
+System should still work smoothly ✔
+
+Types of Scaling
+1️⃣ Vertical Scaling (Scale Up)
+
+Increase power of single server
+
+More CPU
+
+More RAM
+
+Faster disk
+
+Example
+1 Server → 4GB RAM → Upgrade → 32GB RAM
+
+Pros
+
+Simple
+
+No code change
+
+Cons
+
+Hardware limit
+
+Expensive
+
+Single point of failure
+
+👉 Not used for large banking systems.
+
+2️⃣ Horizontal Scaling (Scale Out)
+
+Add multiple servers
+
+Server1
+Server2
+Server3
+   ↓
+Load Balancer
+
+
+Traffic distributed across servers.
+
+Pros
+
+Unlimited scaling
+
+Fault tolerant
+
+High availability
+
+Cons
+
+More complex
+
+Need distributed system design
+
+👉 Used in Banking, Amazon, Netflix
+
+How Banking Systems Scale
+Step 1 — Load Balancer
+
+Distributes requests across multiple app instances.
+
+Step 2 — Multiple Service Instances
+
+Run:
+
+5 Account services
+
+5 Transaction services
+
+Step 3 — Database Scaling
+
+Read replicas
+
+Partitioning / Sharding
+
+Step 4 — Caching (Redis)
+
+Reduce DB load for frequent reads.
+
+Step 5 — Async Processing (Kafka)
+
+Notification, audit, analytics run in background.
+
+Key Scalability Techniques
+Technique	Purpose
+Load Balancer	Distribute traffic
+Stateless Services	Easy scaling
+Database Indexing	Faster queries
+Caching	Reduce DB load
+Sharding	Split large data
+Replication	High availability
+Queue (Kafka)	Handle spikes
+Circuit Breaker	Prevent cascading failures
+Real Banking Example
+
+Without scaling:
+
+1000 users transfer money at same time
+
+Server crashes ❌
+
+With scaling:
+
+Load balancer distributes load
+
+Multiple services handle requests ✔
+
+Stateless vs Stateful (Important)
+Stateless (Good for scaling)
+
+No session stored in server.
+
+Example:
+
+JWT authentication
+
+Any server can handle request ✔
+
+Stateful (Hard to scale)
+
+Session stored in server memory.
+
+Request must go to same server ❌
+
+Interview Questions
+
+Q1: What is scalability?
+Ability to handle increasing load without failure.
+
+Q2: Vertical vs Horizontal?
+Vertical = bigger server, Horizontal = more servers.
+
+Q3: Why stateless for scaling?
+Any server can serve request.
+
+Q4: How scale DB?
+Replication, sharding, indexing.
+
+In Your Banking Project (Future)
+
+You will implement:
+
+Load Balancer (concept)
+
+Redis Cache
+
+Kafka async processing
+
+DB indexing
+
+Horizontal microservices
+
+Kubernetes auto-scaling
+
+You are building production-level scalable system step-by-step.
+
+Next Topics
+
+Reply:
+
+1 → CAP Theorem (Consistency vs Availability) 🔥
+2 → Database Design for Banking
+3 → Concurrency & Race Conditions (Double Withdrawal)
+4 → Real-world scaling architecture (Advanced)
+
+Consistency vs Availability (CAP) — Banking (15 min)
+
+
+Excellent 👍 This is core distributed system theory and very important for banking + interviews.
+
+CAP Theorem — Consistency vs Availability (Banking)
+What is CAP Theorem?
+
+In a distributed system, you cannot guarantee all three at the same time:
+
+C — Consistency
+
+A — Availability
+
+P — Partition Tolerance
+
+👉 You can choose only 2 out of 3.
+
+Since network failures (Partition) are unavoidable → You must choose between C or A.
+
+1️⃣ Consistency (C)
+
+Every read gets the latest correct data.
+
+Example:
+
+Balance = ₹10,000
+
+After transfer → Balance must be ₹9,000 everywhere immediately
+
+No stale data allowed ✔
+
+2️⃣ Availability (A)
+
+System must always respond — even during failure.
+
+Even if data is slightly outdated, system should not fail.
+
+Example:
+
+ATM should still show balance even if DB replica lagging
+
+3️⃣ Partition Tolerance (P)
+
+System continues working even if network breaks between nodes.
+
+Example:
+
+Account DB node disconnected
+
+System must still operate
+
+👉 In real systems, Partition is unavoidable → P is always required
+
+So Choice = CP or AP
+Banking System → CP (Consistency + Partition)
+
+Banking cannot tolerate wrong data.
+
+If system must choose:
+
+Option	Result
+Available but wrong balance	❌ Not acceptable
+Temporarily unavailable but correct	✔ Acceptable
+
+👉 Banking chooses Consistency over Availability
+
+Real Banking Example
+Case: Transfer ₹1000
+
+Two servers:
+
+Server A → Debit
+
+Server B → Credit
+
+Network failure occurs.
+
+If AP (Availability priority)
+
+Debit happens
+
+Credit fails
+
+Money lost ❌
+
+If CP (Consistency priority)
+
+Transaction blocked
+
+No partial update
+
+System may delay response ✔
+
+CP Systems in Real World
+
+Banking
+
+Payment systems (UPI, Visa)
+
+Order processing (financial)
+
+Inventory control
+
+AP Systems (Availability priority)
+
+Used when eventual consistency acceptable
+
+Social media likes
+
+Notifications
+
+Analytics
+
+Chat apps
+
+Strong vs Eventual Consistency
+Strong Consistency (Banking)
+
+Immediately correct data everywhere.
+
+Eventual Consistency (Social media)
+
+Data sync after few seconds.
+
+Interview Questions
+
+Q1: What is CAP theorem?
+Cannot guarantee Consistency, Availability, and Partition simultaneously.
+
+Q2: Why banking chooses CP?
+Wrong balance is unacceptable.
+
+Q3: Example of AP system?
+Social media, chat, analytics.
+
+Q4: What is eventual consistency?
+Data becomes consistent after some delay.
+
+In Your Banking Project
+
+You will implement:
+
+Strong DB transactions
+
+Atomic transfer
+
+Locking for consistency
+
+Idempotency
+
+Fail-safe transaction flow
+
+Later:
+
+CP for transactions
+
+AP for notifications (Kafka async)
+
+👉 This is real production architecture thinking.
+
+Next (Important)
+
+Reply:
+
+1 → Concurrency & Race Condition (Double Withdrawal Problem) 🔥
+2 → Idempotency (Prevent duplicate transfer)
+3 → Database Indexing & Performance
+4 → Full Banking System Design (End-to-End)
+Monolith → Microservices Mapping (10 min)
+What is happening now?
+
+You are building one single application (Monolith) with modules:
+
+User
+
+Account
+
+Transaction
+
+Notification
+
+All run in one codebase + one database.
+
+👉 This is correct starting point ✔
+
+Later we split into independent services.
+
+Current Monolith Structure
+banking-system
+ ├── user
+ ├── account
+ ├── transaction
+ ├── notification
+ ├── common
+ └── config
+
+
+All share same DB:
+
+users
+
+accounts
+
+transactions
+
+notifications
+
+Future Microservices Architecture
+
+Each module becomes separate deployable service.
+
+user-service
+account-service
+transaction-service
+notification-service
+api-gateway
+eureka-server
+config-server
+
+
+Each service has:
+
+Own DB
+
+Own code
+
+Own deployment
+
+Independent scaling
+
+Mapping — Monolith → Microservice
+Monolith Module	Future Microservice	Responsibility
+user	user-service	User profile, KYC, auth
+account	account-service	Balance, debit/credit
+transaction	transaction-service	Money transfer
+notification	notification-service	Email/SMS
+common	shared-lib	DTO, utils
+config	config-server	Central config
+Database Split (Very Important)
+Monolith DB
+banking_db
+ ├── users
+ ├── accounts
+ ├── transactions
+ ├── notifications
+
+Microservices DB
+user_db → users
+account_db → accounts
+transaction_db → transactions
+notification_db → notifications
+
+
+👉 Each service owns its database (Database per Service pattern).
+
+Communication After Split
+Sync (REST / Feign)
+
+Transaction → Account (debit/credit)
+
+Async (Kafka)
+
+Transaction → Notification
+
+Why Move to Microservices?
+Monolith Problem	Microservices Solution
+Hard to scale	Independent scaling
+Tight coupling	Loose coupling
+Single failure	Fault isolation
+Large codebase	Small services
+Slow deployment	Independent deploy
+When NOT to Split
+
+Do NOT move to microservices if:
+
+System small
+
+Low traffic
+
+Early stage
+
+👉 That’s why you start with Clean Monolith ✔
+
+In Your Project — Migration Plan
+Stage 1 (Now)
+
+Monolith + Clean Architecture ✔
+
+Stage 2
+
+Split:
+
+Account service
+
+Transaction service
+
+Stage 3
+
+Add:
+
+API Gateway
+
+Eureka
+
+Config Server
+
+Stage 4
+
+Add:
+
+Kafka
+
+Redis
+
+Circuit breaker
+
+Docker
+
+Kubernetes
+
+You will build this step-by-step.
+
+Interview Questions
+
+Q1: Why start with monolith?
+Simple, faster development, easier debugging.
+
+Q2: When move to microservices?
+When scaling, complexity, team size increases.
+
+Q3: Why DB per service?
+Loose coupling, independent scaling.
+
+Q4: How services communicate?
+Sync (REST), Async (Kafka).
+Real Banking Challenges (Important)
+
+Below are the core problems every real banking / payment system must solve.
+
+1️⃣ Data Consistency (No Money Loss)
+
+Problem:
+Money must never disappear or duplicate.
+
+Example failure:
+
+₹1000 debited
+
+Credit failed
+
+Money lost ❌
+
+Solution used in banking:
+
+ACID transactions
+
+Strong consistency (CP)
+
+Two-phase commit (in distributed)
+
+Idempotency keys
+
+Ledger / double-entry accounting
+
+2️⃣ Concurrency (Double Spending Problem)
+
+Problem:
+Two transfers happen at same time from same account.
+
+Balance = 1000
+Thread 1 → transfer 800
+Thread 2 → transfer 500
+
+
+Final balance becomes negative ❌
+
+Solutions:
+
+Optimistic locking (version column)
+
+Pessimistic locking (row lock)
+
+Serializable isolation (rare, expensive)
+
+Atomic DB operations
+
+You will implement this soon.
+
+3️⃣ High Availability (Bank must never go down)
+
+Banking must run 24×7.
+
+Challenges:
+
+Server crash
+
+DB crash
+
+Network failure
+
+Solutions:
+
+Load balancer
+
+Multi-region deployment
+
+DB replication
+
+Failover nodes
+
+Health checks
+
+Circuit breakers
+
+4️⃣ Fault Tolerance (System survives failures)
+
+If one service fails → whole system must not fail.
+
+Example:
+Notification service down → Transfer must still succeed.
+
+Solution:
+
+Async processing (Kafka)
+
+Retry mechanism
+
+Dead Letter Queue
+
+Graceful degradation
+
+5️⃣ Security (Very Critical)
+
+Banking is top target for attacks.
+
+Threats:
+
+Fraud transfers
+
+Data leaks
+
+SQL injection
+
+Unauthorized access
+
+Solutions:
+
+Encryption (TLS, AES)
+
+OAuth2 / JWT auth
+
+Role-based access (RBAC)
+
+Audit logs
+
+Fraud detection
+
+Rate limiting
+
+You will add security later.
+
+6️⃣ Audit & Traceability (Every paisa tracked)
+
+Bank must answer:
+
+“Where did this ₹1 go?”
+
+Solution:
+
+Immutable transaction log
+
+Ledger table
+
+Event sourcing (advanced)
+
+Full audit history
+
+No delete, only append ✔
+
+7️⃣ Scalability (Millions of users)
+
+UPI handles 10,000+ TPS.
+
+Challenges:
+
+High concurrent transfers
+
+Large DB size
+
+Performance
+
+Solutions:
+
+Horizontal scaling
+
+DB sharding
+
+Read replicas
+
+Caching (Redis)
+
+Queue (Kafka)
+
+8️⃣ Distributed Transactions
+
+In microservices:
+
+Account service → debit
+
+Transaction service → record
+
+Notification → send
+
+If one fails → inconsistency.
+
+Solutions:
+
+Saga pattern (orchestration/choreography)
+
+Outbox pattern
+
+Idempotency
+
+Event-driven architecture
+
+(You will implement later)
+
+9️⃣ Duplicate Requests (Network retries)
+
+User clicks Transfer twice OR network retry happens.
+
+Without protection → money debited twice ❌
+
+Solution:
+
+Idempotency key
+
+Unique transaction constraint
+
+Request deduplication
+
+🔟 Performance vs Consistency Tradeoff
+
+Banking chooses:
+
+Consistency > Availability
+
+Correctness > Speed
+
+But must still keep response fast (<200ms).
+
+Summary — Real Banking Problems
+
+Data consistency
+
+Concurrency control
+
+High availability
+
+Fault tolerance
+
+Security
+
+Audit trail
+
+Scalability
+
+Distributed transaction handling
+
+Duplicate request protection
+
+👉 These are exact topics asked in system design interviews.
+
+In Your Project — You Will Implement
+
+ACID transfer ✔
+
+Locking for concurrency (next)
+
+Idempotency
+
+Transaction ledger
+
+Retry & failure handling
+
+Kafka async
+
+Redis caching
+
+Security (JWT, RBAC)
+
+Saga pattern (microservices stage)
+
+You are building real production-grade banking architecture step-by-step.

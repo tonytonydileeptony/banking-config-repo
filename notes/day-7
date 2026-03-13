@@ -1,0 +1,1291 @@
+Day-7 Plan
+
+Today focus = Designing Reliable Banking System
+
+1️⃣ High Level Design (HLD) — Banking System (30 min)
+
+Understand big picture architecture.
+
+Core Components
+
+API Gateway
+
+Auth Service
+
+Account Service
+
+Transaction Service
+
+Notification Service
+
+Database
+
+Cache (Redis)
+
+Message Broker (Kafka)
+
+Basic Flow (Money Transfer)
+Client → Gateway → Auth → Transaction Service
+      → Account Service (debit/credit)
+      → DB Transaction
+      → Kafka Event → Notification Service
+
+Key Goals
+
+Consistency
+
+No money loss
+
+No duplicate transfer
+
+Fault tolerance
+
+Audit logs
+
+2️⃣ Database Transaction Flow (Very Important) — 20 min
+
+Understand how bank ensures money safety
+
+Transfer Steps
+BEGIN TRANSACTION
+
+1. Lock sender account
+2. Check balance
+3. Debit sender
+4. Credit receiver
+5. Insert transaction record
+6. Commit
+
+IF ERROR → Rollback
+
+Guarantees
+
+No partial transfer
+
+No negative balance
+
+No data corruption
+
+This uses ACID + Pessimistic Lock
+
+3️⃣ Idempotency (Prevent Double Transfer) — 20 min 🔥
+Problem
+
+User clicks Pay twice → money deducted twice ❌
+
+Solution
+
+Use Idempotency Key
+
+Client sends:
+
+POST /transfer
+Idempotency-Key: TXN123
+
+
+Server:
+
+If key exists → return old result
+
+Else → process transfer
+
+Used in UPI / Stripe / PayPal
+
+4️⃣ Retry & Failure Handling — 15 min
+
+Failures happen:
+
+DB timeout
+
+Network failure
+
+Service crash
+
+Strategy
+
+Retry (with backoff)
+
+Circuit Breaker (Resilience4j)
+
+Dead Letter Queue (Kafka)
+
+Transaction rollback
+
+5️⃣ Audit & Logging (Banking Mandatory) — 15 min
+
+Banks must track:
+
+Who transferred?
+
+When?
+
+Old balance → New balance
+
+Status
+
+Tables
+
+transactions
+
+audit_logs
+
+Never delete — only append.
+
+6️⃣ Data Consistency in Microservices — 20 min 🔥
+
+In monolith → single DB → easy
+
+In microservices → multiple DB → hard
+
+Solutions
+
+Saga Pattern
+
+Event Driven (Kafka)
+
+Distributed Transaction (2PC — rarely used)
+
+We will implement Saga later.
+
+🧠 Interview Questions from Day-7
+Q1: How do you prevent double payment?
+
+→ Idempotency Key
+
+Q2: How does bank ensure atomic transfer?
+
+→ DB Transaction + ACID + Locking
+
+Q3: How do microservices maintain consistency?
+
+→ Saga / Event driven
+
+Q4: What happens if service crashes mid-transfer?
+
+→ Transaction rollback
+High Level Design (HLD) — Banking System
+Goal of HLD
+
+Define big-picture architecture of the system:
+
+Components
+
+Services
+
+Data flow
+
+External systems
+
+Scaling strategy
+
+No code. Only architecture thinking.
+
+1️⃣ Core Requirements
+Functional
+
+Create account
+
+Deposit / Withdraw
+
+Transfer money
+
+Check balance
+
+Transaction history
+
+Notifications
+
+Non-Functional (Most Important)
+
+Strong consistency (no money loss)
+
+High availability
+
+Concurrency safe
+
+Secure
+
+Scalable
+
+Auditable
+
+Banking prioritizes Consistency > Availability.
+
+2️⃣ Core Services (Microservices Architecture)
+1. API Gateway
+
+Entry point for all clients.
+
+Responsibilities:
+
+Routing
+
+Authentication
+
+Rate limiting
+
+Logging
+
+2. Auth Service
+
+Handles:
+
+Login / Signup
+
+JWT token
+
+User identity
+
+3. Account Service
+
+Handles:
+
+Create account
+
+Fetch balance
+
+Block / unblock
+
+Account validation
+
+Owns accounts table
+
+4. Transaction Service (Most Critical)
+
+Handles:
+
+Transfer money
+
+Debit / Credit
+
+Maintain transaction history
+
+Idempotency
+
+Owns transactions table
+
+5. Notification Service
+
+Handles:
+
+SMS / Email alerts
+
+Transaction success/failure
+
+Triggered via Kafka events
+
+6. Audit / Logging Service (Optional but real-world)
+
+Tracks:
+
+Every action
+
+Who did what
+
+Old vs new balance
+
+Used for compliance
+
+3️⃣ Databases
+
+Each service owns its own DB (Microservices rule):
+
+Account DB → accounts
+
+Transaction DB → transactions
+
+Auth DB → users
+
+Audit DB → audit_logs
+
+Avoid shared DB.
+
+4️⃣ Supporting Components
+Redis (Cache)
+
+Used for:
+
+Fast balance read
+
+Rate limiting
+
+Session cache
+
+Idempotency keys
+
+Kafka (Message Broker)
+
+Used for:
+
+Transaction events
+
+Notification
+
+Async processing
+
+Audit logs
+
+Load Balancer
+
+Distributes traffic across instances.
+
+Monitoring
+
+Prometheus
+
+Grafana
+
+ELK (logs)
+
+5️⃣ Money Transfer Flow (End-to-End)
+Client → API Gateway → Auth Service (verify token)
+      → Transaction Service
+      → Account Service (lock + debit + credit)
+      → DB Transaction COMMIT
+      → Kafka → Notification Service
+      → Response to Client
+
+
+Guarantees:
+
+Atomic
+
+Consistent
+
+No double debit
+
+Logged
+
+6️⃣ Failure Handling
+
+If any step fails:
+
+DB rollback
+
+Retry (safe)
+
+Circuit breaker
+
+Idempotency avoids duplicate transfer
+
+7️⃣ Scaling Strategy
+
+Stateless services → horizontal scaling
+
+Read-heavy → cache with Redis
+
+Async tasks → Kafka
+
+DB → sharding / read replicas (later)
+
+8️⃣ Security (Banking Mandatory)
+
+JWT auth
+
+TLS (HTTPS)
+
+Encryption at rest
+
+Rate limiting
+
+Fraud detection (later)
+
+Audit logs
+
+9️⃣ Monolith → Microservices Mapping
+Monolith Module	Microservice
+User	Auth Service
+Account	Account Service
+Transfer	Transaction Service
+Notification	Notification Service
+
+You are currently in Modular Monolith stage — correct approach.
+
+🔟 Real Banking Challenges
+
+Double withdrawal
+
+Race conditions
+
+Duplicate transfer
+
+Partial transaction
+
+Network failure
+
+Service crash
+
+Data inconsistency
+
+We are solving them step-by-step in your project.
+
+Interview Questions
+
+Q1: Which service handles money transfer?
+Transaction Service
+
+Q2: Why separate Account & Transaction service?
+Isolation, scaling, data ownership
+
+Q3: How ensure no money loss?
+DB transaction + ACID + locking
+
+Q4: How send notifications?
+Event-driven via Kafka
+
+Q5: Why use Redis?
+Fast read + caching + idempotency
+Excellent 👍 — Database Transaction Flow is the heart of banking systems.
+If you understand this, you understand how banks prevent money loss.
+
+Database Transaction Flow — Money Transfer
+Goal
+
+Guarantee:
+
+No partial transfer
+
+No double debit
+
+No negative balance
+
+Data always consistent
+
+This is achieved using ACID + Locking + DB Transactions.
+
+Basic Transfer Flow
+BEGIN TRANSACTION
+
+1. Lock sender account
+2. Validate balance
+3. Debit sender
+4. Lock receiver account
+5. Credit receiver
+6. Insert transaction record
+7. Commit
+
+IF any error → Rollback
+
+Step-by-Step Explanation
+1️⃣ Begin Transaction
+
+Database creates transaction boundary.
+
+All operations are treated as one unit of work.
+
+If anything fails → everything is undone.
+
+2️⃣ Lock Sender Account
+
+Prevent:
+
+Double withdrawal
+
+Race condition
+
+Example:
+
+Two threads try to withdraw ₹5000 from ₹6000 balance.
+
+Without lock → both succeed ❌
+With lock → only one succeeds ✅
+
+Lock type usually:
+
+Pessimistic Write Lock
+
+3️⃣ Validate Balance
+
+Check:
+
+if balance < amount → FAIL
+
+
+Prevents negative balance.
+
+4️⃣ Debit Sender
+sender.balance = sender.balance - amount
+
+
+Still inside transaction → not committed yet.
+
+5️⃣ Lock Receiver + Credit
+receiver.balance = receiver.balance + amount
+
+
+Both debit & credit are part of same transaction.
+
+6️⃣ Insert Transaction Record
+
+Table: transactions
+
+Stores:
+
+sender_id
+
+receiver_id
+
+amount
+
+status
+
+timestamp
+
+This is audit proof.
+
+7️⃣ Commit
+
+Database permanently saves:
+
+Debit
+
+Credit
+
+Transaction record
+
+All or nothing.
+
+If Failure Happens
+
+Example failures:
+
+DB crash
+
+Service crash
+
+Network error
+
+Validation failure
+
+Then:
+
+ROLLBACK
+
+
+Database restores:
+
+Old sender balance
+
+Old receiver balance
+
+No transaction record
+
+No money loss.
+
+ACID Guarantees
+Property	Meaning in Banking
+Atomicity	Transfer fully or none
+Consistency	No invalid balance
+Isolation	Concurrent transfers safe
+Durability	Once committed, never lost
+Real Banking Locking Strategy
+
+Banks usually:
+
+Lock both sender & receiver
+
+Always lock in same order (by account ID) to avoid deadlock
+
+Use Pessimistic Lock for money movement
+
+Example SQL (Conceptual)
+BEGIN;
+
+SELECT * FROM accounts WHERE id = 'A' FOR UPDATE;
+SELECT * FROM accounts WHERE id = 'B' FOR UPDATE;
+
+UPDATE accounts SET balance = balance - 1000 WHERE id='A';
+UPDATE accounts SET balance = balance + 1000 WHERE id='B';
+
+INSERT INTO transactions(...);
+
+COMMIT;
+
+
+FOR UPDATE = row lock.
+
+What Happens Without Transaction?
+
+Bad scenario:
+
+Debit succeeds
+
+System crashes before credit
+
+Money lost ❌
+
+Transaction prevents this.
+
+Interview Questions
+
+Q1: Why DB transaction required in banking?
+To ensure atomic & consistent money transfer.
+
+Q2: What if service crashes after debit?
+Rollback → no money deducted.
+
+Q3: Why lock sender account?
+Prevent double withdrawal / race condition.
+
+Q4: Why insert transaction record?
+Audit + traceability.
+
+Q5: Optimistic vs Pessimistic here?
+Banking uses Pessimistic for strong consistency.
+
+3️⃣ Idempotency — Prevent Double Transfer
+🔴 Problem
+
+Same transfer request may be sent multiple times due to:
+
+Network timeout
+
+User double-click
+
+Payment gateway retry
+
+Service crash
+
+Client retry logic
+
+Without idempotency:
+
+Transfer ₹1000
+→ processed twice
+→ double debit ❌
+
+🟢 Definition
+
+Idempotency = Same request executed many times → same result (only one actual transfer).
+
+🧠 Key Idea
+
+Each request must contain unique Idempotency Key (Request ID)
+
+Example:
+
+X-Idempotency-Key: TXN-USER1-000123
+
+
+Server stores this key and ensures it is processed only once.
+
+🔄 Flow
+1. Client sends transfer with idempotency_key
+2. Server checks DB:
+
+   If key exists → return previous result
+   If key not exists → process transfer
+
+3. Save idempotency_key + response
+
+🗄️ Table Design
+idempotency_records
+Column	Description
+idempotency_key (PK)	Unique request id
+status	SUCCESS / FAILED
+response	Stored API response
+created_at	timestamp
+
+Important: Add UNIQUE constraint on idempotency_key.
+
+💸 Transaction Flow with Idempotency
+BEGIN TRANSACTION
+
+1. Check idempotency_key exists?
+      YES → return stored result
+      NO  → continue
+
+2. Lock sender account
+3. Validate balance
+4. Debit sender
+5. Credit receiver
+6. Insert transaction record
+7. Save idempotency record
+
+COMMIT
+
+
+If failure → ROLLBACK → key not stored → safe retry.
+
+🧩 Spring Boot Concept
+Check before processing
+Optional<IdempotencyRecord> record =
+        repo.findById(req.getRequestId());
+
+if (record.isPresent()) {
+    return deserialize(record.get().getResponse());
+}
+
+Save after success
+IdempotencyRecord rec = new IdempotencyRecord();
+rec.setIdempotencyKey(req.getRequestId());
+rec.setStatus("SUCCESS");
+rec.setResponse(serialize(response));
+repo.save(rec);
+
+⚠️ Concurrency Case (Important)
+
+Two same requests arrive at same time:
+
+Solution:
+
+Put UNIQUE constraint on idempotency_key
+
+Wrap in @Transactional
+
+One insert succeeds, second fails → fetch stored result
+
+🏦 Real Banking Usage
+
+Used in:
+
+Money Transfer
+
+UPI / Payments
+
+Wallet debit
+
+Order payment
+
+Kafka Exactly-Once processing
+
+Distributed systems
+
+🎯 Interview Questions
+
+Q: What is idempotency?
+Same request multiple times → same result, no duplicate side effects.
+
+Q: How prevent double transfer?
+Using idempotency key stored with unique constraint.
+
+Q: Where store key?
+DB / Redis.
+
+Q: Retry vs Idempotency?
+Retry repeats request, idempotency prevents duplicate execution.
+
+Q: What if two same keys hit concurrently?
+Unique constraint + transaction ensures only one executes.
+🏦 High Level Design (HLD) — Money Transfer
+🎯 Goal
+
+User transfers money from Account A → Account B safely, without:
+
+❌ Double debit
+
+❌ Money loss
+
+❌ Race conditions
+
+❌ Inconsistent balance
+
+🧱 Core Components
+1️⃣ Client / API Layer
+
+User sends request:
+
+POST /transfer
+{
+  fromAccount: 101,
+  toAccount: 202,
+  amount: 500
+}
+
+2️⃣ API Gateway (Optional in microservices)
+
+Authenticates user
+
+Rate limiting
+
+Routes request → Transfer Service
+
+3️⃣ Transfer Service (Main Business Logic)
+
+Responsibilities:
+
+Validate request
+
+Check balance
+
+Lock accounts
+
+Debit & Credit
+
+Record transaction
+
+Ensure idempotency
+
+4️⃣ Account Service
+
+Fetch account balance
+
+Update balance
+
+Maintain version/locking
+
+5️⃣ Transaction Service
+
+Stores every transfer:
+
+txn_id	from	to	amount	status
+TXN1	101	202	500	SUCCESS
+6️⃣ Database (ACID — VERY IMPORTANT)
+
+Tables:
+
+Account Table
+id	balance	version
+Transaction Table
+
+| txn_id | status | created_at |
+
+🔄 End-to-End Flow (HLD)
+Client
+   ↓
+API Gateway
+   ↓
+Transfer Service
+   ↓
+[Start DB Transaction]
+   ↓
+Lock From Account
+Check Balance
+Debit From Account
+Credit To Account
+Insert Transaction Record
+Commit
+   ↓
+Return SUCCESS
+
+🔐 Important Design Concepts
+1️⃣ Atomic Transaction (ACID)
+
+Either:
+
+Both debit + credit happen ✅
+OR
+
+Nothing happens ❌
+
+2️⃣ Idempotency (Prevent Double Transfer)
+
+If same request comes twice:
+
+txnId = UNIQUE
+
+
+Second request → ignored.
+
+3️⃣ Locking (Prevent Race Condition)
+
+Two withdrawals at same time → avoid negative balance.
+
+Options:
+
+Pessimistic Lock (DB lock)
+
+Optimistic Lock (Version)
+
+4️⃣ Failure Handling
+
+If crash happens after debit but before credit:
+
+➡️ Rollback OR Retry using transaction log.
+
+🏗 Monolith vs Microservice HLD
+Monolith (Current Stage)
+Controller → Service → Repository → DB
+
+Microservices (Future)
+API Gateway
+   ↓
+Transfer Service
+   ↓
+Account Service
+   ↓
+Kafka / Event
+   ↓
+Notification Service
+
+🔥 Interview Questions From This Topic
+
+You MUST know:
+
+How to prevent double debit?
+
+How to avoid race condition?
+
+What happens if service crashes mid-transfer?
+
+How to design idempotent transfer API?
+
+How to scale transfer service?
+
+How to maintain consistency across services?
+
+🧠 Real Banking Challenges
+
+Network failure during transfer
+
+Duplicate requests
+
+Concurrent withdrawals
+
+DB deadlocks
+
+Partial failures
+
+High TPS (thousands transfers/sec)
+
+Fraud detection
+
+🏦 Database Transaction Flow (Deep Level)
+🎯 Goal
+
+Ensure safe money transfer using DB transaction so:
+
+No money loss
+
+No double debit
+
+No negative balance
+
+Strong consistency
+
+🔄 Step-by-Step Transaction Flow
+Example
+
+Transfer ₹500 from Account A → Account B
+
+1️⃣ Start Database Transaction
+BEGIN;
+
+
+Transaction ensures Atomicity (ACID).
+
+2️⃣ Lock Sender Account (Prevent Race Condition)
+SELECT * FROM account
+WHERE id = 101
+FOR UPDATE;
+
+
+🔒 This creates row-level lock.
+
+If another transfer tries same account → it must WAIT.
+
+3️⃣ Check Balance
+IF balance < 500 → FAIL
+
+
+Avoid negative balance bug.
+
+4️⃣ Debit Sender
+UPDATE account
+SET balance = balance - 500
+WHERE id = 101;
+
+5️⃣ Lock Receiver Account
+SELECT * FROM account
+WHERE id = 202
+FOR UPDATE;
+
+6️⃣ Credit Receiver
+UPDATE account
+SET balance = balance + 500
+WHERE id = 202;
+
+7️⃣ Insert Transaction Record
+INSERT INTO transaction(txn_id, from_acc, to_acc, amount, status)
+VALUES ('TXN123', 101, 202, 500, 'SUCCESS');
+
+8️⃣ Commit Transaction
+COMMIT;
+
+
+Now Debit + Credit both saved permanently.
+
+❌ What If Failure Happens?
+Case 1: Crash after debit but before credit
+
+Because transaction not committed → DB will:
+
+ROLLBACK;
+
+
+👉 Money restored automatically.
+
+Case 2: DB deadlock
+
+Example:
+
+TXN1 locks A → waits for B
+
+TXN2 locks B → waits for A
+
+DB detects deadlock → kills one transaction → retry.
+
+🔐 Isolation Levels (VERY IMPORTANT)
+1️⃣ READ COMMITTED (Most used in banking)
+
+Prevents dirty read
+
+Still allows non-repeatable read
+
+2️⃣ REPEATABLE READ
+
+Same row cannot change during txn
+
+Prevents non-repeatable read
+
+3️⃣ SERIALIZABLE (Strongest)
+
+Transactions behave sequentially
+
+Slow but safest
+
+👉 Banking mostly uses:
+REPEATABLE READ + Row Lock
+
+⚠️ Lock Order Rule (Avoid Deadlock)
+
+Always lock accounts in sorted order:
+
+lock(min(accountA, accountB))
+lock(max(accountA, accountB))
+
+
+Prevents circular wait.
+
+🧠 Real Banking Optimization
+1️⃣ Use Single SQL (Atomic Update)
+UPDATE account
+SET balance = balance - 500
+WHERE id = 101 AND balance >= 500;
+
+
+If rows affected = 0 → insufficient balance.
+
+2️⃣ Use Optimistic Lock (Version)
+UPDATE account
+SET balance = balance - 500, version = version + 1
+WHERE id = 101 AND version = 5;
+
+
+If another txn changed row → retry.
+
+3️⃣ Use Retry Mechanism
+
+If:
+
+Deadlock
+
+Lock timeout
+
+Optimistic failure
+
+→ Retry transfer automatically.
+
+🔥 Interview Questions From This Topic
+
+Be ready for:
+
+Why use SELECT FOR UPDATE?
+
+What is deadlock? How prevent?
+
+Difference: READ COMMITTED vs REPEATABLE READ?
+
+What happens if crash after debit?
+
+How DB ensures atomic transfer?
+
+Why lock order matters?
+
+Optimistic vs Pessimistic locking?
+Great 👍
+Now we complete Day-7 (60–90 min) — this is production-level banking design.
+
+🔁 Idempotency + Retry + Failure Handling (Deep Design)
+
+This is what makes your system real banking grade.
+
+1️⃣ Idempotency — Prevent Double Transfer
+❓ Problem
+
+User clicks Transfer button twice OR network retry happens.
+
+Without protection:
+
+Money debited twice ❌
+
+Duplicate transactions ❌
+
+✅ Solution: Idempotency Key
+
+Every transfer request must contain unique requestId.
+
+Example:
+
+{
+  "fromAccount": 101,
+  "toAccount": 202,
+  "amount": 500,
+  "requestId": "abc123"
+}
+
+🔄 Flow
+
+Check if requestId already exists
+
+If exists → return previous result (NO re-processing)
+
+If not → process transfer
+
+Save requestId in DB
+
+DB Table
+idempotency_table
+-----------------
+request_id (PK)
+status
+response
+created_at
+
+Spring Boot Logic (Pseudo)
+@Transactional
+public TransferResponse transfer(TransferRequest req) {
+
+    if(idempotencyRepo.exists(req.getRequestId())) {
+        return idempotencyRepo.getResponse(req.getRequestId());
+    }
+
+    // Perform transfer safely
+    debit();
+    credit();
+
+    idempotencyRepo.save(req.getRequestId(), SUCCESS);
+
+    return SUCCESS;
+}
+
+🔥 Interview Question
+
+Q: What is Idempotency?
+A: Same request executed multiple times → same result, no duplicate effect.
+
+2️⃣ Retry Mechanism (Very Important)
+❓ Why Retry?
+
+Failures happen due to:
+
+Deadlock
+
+DB timeout
+
+Network glitch
+
+Temporary service failure
+
+✅ Retry Strategy
+
+Retry ONLY for transient failures, NOT for:
+
+Insufficient balance
+
+Validation error
+
+Spring Retry Example
+@Retryable(
+  value = {DeadlockException.class, TimeoutException.class},
+  maxAttempts = 3,
+  backoff = @Backoff(delay = 200)
+)
+public void transferMoney() {
+   // transfer logic
+}
+
+🔥 Retry Best Practice
+Rule	Why
+Max retry = 3	Avoid infinite loop
+Exponential backoff	Reduce DB pressure
+Retry only safe ops	Avoid duplicate
+3️⃣ Failure Handling (Real Banking)
+Case 1: Service crash after debit
+
+If DB transaction → Rollback → Safe
+
+If distributed (microservices) → Need Saga Pattern
+
+Case 2: Receiver service down
+
+Retry OR queue transaction.
+
+Case 3: Partial Failure
+
+Debit success, credit failed → Use Compensation
+
+Debit A → Fail credit B → Refund A
+
+4️⃣ Real Banking Transfer Flow (Production)
+Client → API Gateway → Transfer Service
+        ↓
+Check Idempotency
+        ↓
+Start DB Transaction
+        ↓
+Lock Accounts
+        ↓
+Check Balance
+        ↓
+Debit Sender
+        ↓
+Credit Receiver
+        ↓
+Insert Transaction Record
+        ↓
+Save Idempotency Key
+        ↓
+Commit
+        ↓
+Return SUCCESS
+
+5️⃣ Distributed Failure (Microservices)
+
+When split into services:
+
+Account Service → Debit
+
+Payment Service → Transfer
+
+Notification Service → SMS
+
+If failure → Use:
+
+Saga pattern
+
+Event driven retry
+
+Dead letter queue
+
+(We will build this later)
+
+6️⃣ Real Interview Questions
+
+Prepare answers for:
+
+How prevent double payment?
+
+What is idempotency key?
+
+When should retry NOT happen?
+
+How handle partial failure?
+
+What happens if service crashes mid-transfer?
+
+How banking ensures money never lost?
+
+What is compensation transaction?
+
+Difference: Retry vs Idempotency?

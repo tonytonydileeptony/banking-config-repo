@@ -1,0 +1,1512 @@
+Day 14 = Spring Transactions Deep Dive (@Transactional Internals)
+This is CORE for Senior Java Backend + Interview + Real Banking Systems
+
+We’ll cover HOW Spring Transaction REALLY works internally with examples.
+
+🧠 1. What Happens When @Transactional Runs (Internals)
+
+When you call a transactional method:
+
+Client → Proxy → Transaction Manager → DB
+
+Internal Flow
+
+Spring creates AOP Proxy
+
+Proxy intercepts method
+
+Opens DB transaction
+
+Executes method
+
+If success → COMMIT
+
+If RuntimeException → ROLLBACK
+
+🧪 Demo
+@Service
+public class TransferService {
+
+    @Transactional
+    public void transfer(Long from, Long to, double amount) {
+        debit(from, amount);
+        credit(to, amount);
+    }
+}
+
+🧠 2. Transaction Proxy Problem (Most Asked Interview Q)
+Perfect — this is one of the MOST asked Spring interview questions. Let’s make it crystal clear.
+
+2. Transaction Proxy Problem (Self-Invocation)
+Core Idea
+
+Spring applies @Transactional using AOP Proxy, not directly on your method.
+
+So ONLY calls that go through the Spring proxy get transaction.
+
+If a method inside the same class calls another @Transactional method → proxy is bypassed → NO transaction.
+
+❌ Problem Example (Self Invocation)
+@Service
+public class TransferService {
+
+    public void outer() {
+        inner();   // ❌ Direct call → NO proxy → NO transaction
+    }
+
+    @Transactional
+    public void inner() {
+        System.out.println("Transaction active?");
+    }
+}
+
+What happens internally
+Client → Proxy → outer()  ✔
+outer() → inner() (direct call, no proxy) ❌
+
+
+So inner() runs WITHOUT transaction.
+
+How to Verify (Debug)
+
+Add:
+
+System.out.println(TransactionSynchronizationManager.isActualTransactionActive());
+
+
+You’ll see:
+
+false
+
+✔ Fix #1 — Move to Another Service (Best Practice)
+
+Spring proxy works only between beans, not inside same class.
+
+@Service
+public class InnerService {
+
+    @Transactional
+    public void inner() {
+        System.out.println("Transaction ACTIVE");
+    }
+}
+
+@Service
+public class TransferService {
+
+    @Autowired
+    private InnerService innerService;
+
+    public void outer() {
+        innerService.inner();   // ✔ Goes through proxy → transaction works
+    }
+}
+
+✔ Fix #2 — Self Injection (Proxy Call)
+@Service
+public class TransferService {
+
+    @Autowired
+    private TransferService self;   // Inject proxy of same bean
+
+    public void outer() {
+        self.inner();   // ✔ goes through proxy
+    }
+
+    @Transactional
+    public void inner() {
+        System.out.println("Transaction ACTIVE");
+    }
+}
+
+
+⚠ Works, but not recommended in clean architecture.
+
+✔ Fix #3 — Use TransactionTemplate (Manual Control)
+@Autowired
+private TransactionTemplate txTemplate;
+
+public void outer() {
+    txTemplate.execute(status -> {
+        innerLogic();
+        return null;
+    });
+}
+
+✔ Fix #4 — Make Outer Method Transactional
+
+If both must be transactional:
+
+@Transactional
+public void outer() {
+    inner();   // Now works because outer already opened tx
+}
+
+Common Interview Questions
+Q1: Why does self-invocation fail?
+
+Because Spring uses proxy-based AOP, and internal method calls bypass proxy.
+
+Q2: How to fix?
+
+Move method to another service ✔ (Best)
+
+Self-injection ✔
+
+Use TransactionTemplate
+
+Make outer method transactional
+
+Q3: Does this problem occur in other annotations?
+
+YES — any proxy-based annotation:
+
+@Transactional
+
+@Async
+
+@Cacheable
+
+@Retryable
+
+@CircuitBreaker
+
+All fail with self-invocation.
+
+Real Banking Example (Bug)
+public void transfer() {
+    debit();   // ❌ no transaction
+    credit();  // ❌ no transaction
+}
+
+@Transactional
+public void debit() {}
+
+@Transactional
+public void credit() {}
+
+
+This can cause money loss / partial update.
+
+Correct Banking Design
+@Transactional
+public void transfer() {
+    debit();
+    credit();
+}
+
+
+OR split services.
+
+Debug Tip (Very Useful)
+
+Enable logs:
+
+logging.level.org.springframework.transaction=TRACE
+
+
+If proxy working → you’ll see:
+
+Creating new transaction
+Committing transaction
+
+
+If proxy bypassed → no transaction logs.
+❌ WRONG — Self Invocation (Transaction NOT applied)
+
+public void outer() {
+    inner();  // Transaction NOT active
+}
+
+@Transactional
+public void inner() {}
+
+
+Why?
+Because Proxy is bypassed.
+
+✔ Fix
+Option 1 — Move to another service
+@Service
+public class InnerService {
+    @Transactional
+    public void inner() {}
+}
+
+Option 2 — Use Self Proxy
+@Autowired
+private TransferService self;
+
+public void outer() {
+    self.inner();
+}
+
+🧠 3. Rollback Rules (Important)
+Default Rule (Most Important)
+
+Spring ROLLS BACK only on unchecked exceptions:
+
+✅ RuntimeException → rollback
+
+✅ Error → rollback
+
+❌ Checked Exception → NO rollback
+
+Example — Default Behaviour
+@Transactional
+public void transfer() {
+    debit();   // money deducted
+    if (true) {
+        throw new RuntimeException("Failure"); // ❌ RuntimeException
+    }
+    credit();
+}
+
+
+✔ Result → ROLLBACK happens → money restored
+
+Checked Exception Case (Danger)
+@Transactional
+public void transfer() throws Exception {
+    debit();
+    if (true) {
+        throw new Exception("Failure");  // ❌ Checked Exception
+    }
+    credit();
+}
+
+
+❌ Result → NO rollback → money deducted → DATA CORRUPTION
+
+This is a very common production bug.
+
+Fix — Force Rollback for Checked Exception
+@Transactional(rollbackFor = Exception.class)
+public void transfer() throws Exception {
+    debit();
+    throw new Exception("Failure");
+}
+
+
+✔ Now rollback will happen.
+
+Ignore Rollback for Some Exceptions
+
+Sometimes you don’t want rollback (rare but useful).
+
+@Transactional(noRollbackFor = IllegalArgumentException.class)
+public void process() {
+    saveData();
+    throw new IllegalArgumentException("Validation failed");
+}
+
+
+✔ Transaction will COMMIT, not rollback.
+
+Multiple Exceptions
+@Transactional(
+    rollbackFor = {SQLException.class, IOException.class},
+    noRollbackFor = {CustomBusinessException.class}
+)
+
+Real Banking Scenario
+❌ Wrong
+@Transactional
+public void transfer() throws IOException {
+    debit();      // deducted
+    sendReceipt(); // IOException occurs
+}
+
+
+Money deducted ❌
+Receipt failed ❌
+Rollback NOT triggered ❌
+
+✔ Correct
+@Transactional(rollbackFor = IOException.class)
+public void transfer() throws IOException {
+    debit();
+    sendReceipt();
+}
+
+
+Now full rollback ✔
+
+Runtime vs Checked Quick Memory Trick
+Exception Type	Rollback?
+RuntimeException	✔ YES
+NullPointerException	✔ YES
+IllegalArgumentException	✔ YES
+IOException	❌ NO
+SQLException	❌ NO
+Exception	❌ NO
+Best Practice (Production)
+
+Most teams use:
+
+@Transactional(rollbackFor = Exception.class)
+
+
+So ALL failures rollback safely.
+
+Interview Questions
+Q1: Why Spring doesn’t rollback on checked exceptions by default?
+
+Because checked exceptions are considered business exceptions, not system failures.
+
+Q2: How to rollback for all exceptions?
+@Transactional(rollbackFor = Exception.class)
+
+Q3: What happens if exception is caught?
+
+If you catch exception and don’t rethrow, Spring WILL NOT rollback.
+
+@Transactional
+public void transfer() {
+    try {
+        debit();
+        throw new RuntimeException();
+    } catch (Exception e) {
+        // swallowed ❌ → NO rollback
+    }
+}
+
+
+✔ Fix:
+
+catch (Exception e) {
+    throw e;   // rethrow to trigger rollback
+}
+
+Debug Tip
+
+Enable:
+
+logging.level.org.springframework.transaction=TRACE
+
+
+You’ll see:
+
+Rolling back transaction
+
+
+If you want, next topics (very important):
+
+Propagation REQUIRED vs REQUIRES_NEW (Confusing but critical)
+
+Isolation Levels with real DB behaviour
+
+Flush vs Commit (Hibernate internal)
+
+ReadOnly transactions optimization
+
+Nested transactions & savepoints
+
+Deadlock + Retry (Production pattern)
+By default:
+
+Exception Type	Result
+RuntimeException	ROLLBACK
+Checked Exception	COMMIT ❌
+Force Rollback for Checked Exception
+@Transactional(rollbackFor = Exception.class)
+public void transfer() throws Exception {
+    throw new Exception("Checked");
+}
+
+🧠 4. Propagation (Transaction Behavior)
+REQUIRED (Default)
+
+What is Propagation?
+
+Propagation defines how a method behaves when another transaction already exists.
+
+REQUIRED (Default)
+Rule
+
+If transaction exists → join same transaction
+
+If no transaction → create new transaction
+
+👉 In simple words: “Use existing or create new”
+
+Example
+@Service
+public class PaymentService {
+
+    @Transactional   // REQUIRED (default)
+    public void transfer() {
+        debit();      // same transaction
+        credit();     // same transaction
+    }
+
+    @Transactional
+    public void debit() {
+        // deduct money
+    }
+
+    @Transactional
+    public void credit() {
+        // add money
+    }
+}
+
+Flow
+transfer() → Transaction START
+   ├── debit()  → joins SAME transaction
+   ├── credit() → joins SAME transaction
+transfer() → COMMIT / ROLLBACK
+
+
+✔ Only ONE transaction exists
+✔ If any step fails → full rollback
+
+Failure Scenario
+@Transactional
+public void transfer() {
+    debit();
+    if (true) throw new RuntimeException("Failure");
+    credit();
+}
+
+
+✔ Debit rolled back
+✔ Credit not executed
+✔ Data consistent
+
+Real Banking Example
+Transfer Money
+ ├── Debit from A
+ ├── Credit to B
+ └── Save transaction log
+
+
+All must succeed or ALL rollback → REQUIRED is perfect.
+
+Important Interview Question
+What happens if inner method fails?
+
+Since both use same transaction, failure causes full rollback.
+
+Common Mistake (Self Invocation)
+@Transactional
+public void transfer() {
+    debit();   // ❌ proxy NOT used → no separate TX behavior
+}
+
+
+When calling method inside same class, Spring proxy is bypassed.
+Propagation rules may not apply properly.
+
+✔ Fix → move method to another @Service bean.
+
+When REQUIRED is Best
+
+Use when operations must be atomic:
+
+Money transfer
+
+Order placement
+
+Payment processing
+
+Inventory update
+
+User registration
+
+REQUIRED Behavior Summary
+Situation	Result
+No transaction exists	Create new
+Transaction exists	Join same
+Inner fails	Full rollback
+Outer fails	Full rollback
+Only one commit	Yes
+Debug Log (Enable)
+logging.level.org.springframework.transaction=TRACE
+
+
+You’ll see:
+
+Participating in existing transaction
+
+Join existing or create new.
+
+@Transactional
+public void A() { B(); }
+
+REQUIRES_NEW (Independent Tx)
+@Transactional(propagation = Propagation.REQUIRES_NEW)
+public void auditLog() {}
+
+
+✔ Runs separate transaction
+✔ Even if parent fails → audit saved
+
+NESTED (Savepoint)
+@Transactional(propagation = Propagation.NESTED)
+
+
+Uses Savepoints
+
+Partial rollback possible
+
+SUPPORTS
+
+Runs with tx if exists, else non-tx.
+
+NEVER
+
+Throws error if transaction exists.
+
+🧠 5. Isolation Levels (Concurrency Control)
+
+Isolation defines how one transaction is isolated from another concurrent transaction.
+
+It controls data visibility + consistency when multiple users access same data.
+
+Why Isolation Needed?
+
+Without isolation:
+
+Two users withdraw same money → double withdrawal
+
+One transaction reads uncommitted data → dirty read
+
+Same query returns different results → non-repeatable read
+
+New rows appear during query → phantom read
+
+Isolation prevents these problems.
+
+4 Standard Isolation Levels
+
+(From weakest ➜ strongest)
+
+Level	Dirty Read	Non-Repeatable Read	Phantom Read	Performance
+READ_UNCOMMITTED	❌ Possible	❌ Possible	❌ Possible	🚀 Fastest
+READ_COMMITTED	✅ Prevented	❌ Possible	❌ Possible	Fast
+REPEATABLE_READ	✅ Prevented	✅ Prevented	❌ Possible	Medium
+SERIALIZABLE	✅ Prevented	✅ Prevented	✅ Prevented	🐢 Slowest
+1️⃣ READ_UNCOMMITTED (Lowest)
+What happens
+
+Transaction can read uncommitted data from another transaction.
+
+Problem → Dirty Read
+T1 updates balance = 0 (not committed)
+T2 reads balance = 0  ❌ wrong
+T1 rolls back → actual balance = 1000
+
+
+T2 read invalid data
+
+⚠ Rarely used in real systems.
+
+2️⃣ READ_COMMITTED (Most Common)
+
+(Default in many DBs like PostgreSQL, Oracle)
+
+Rule
+
+Can only read committed data
+
+✔ Prevents Dirty Read
+❌ Allows Non-Repeatable Read
+
+Problem → Non-Repeatable Read
+T1 reads balance = 1000
+T2 updates balance = 500 and commits
+T1 reads again → 500 (changed)
+
+
+Same query → different result.
+
+3️⃣ REPEATABLE_READ (MySQL Default)
+Rule
+
+Row once read cannot change during transaction
+
+✔ Prevents Dirty Read
+✔ Prevents Non-Repeatable Read
+❌ Phantom Read possible
+
+Example
+T1 reads account balance = 1000
+T2 tries update → blocked OR version conflict
+T1 still sees 1000
+
+
+Great for banking systems.
+
+4️⃣ SERIALIZABLE (Strongest)
+
+Transactions behave like executed one-by-one (sequential).
+
+✔ Prevents all:
+
+Dirty Read
+
+Non-Repeatable Read
+
+Phantom Read
+
+Example
+
+If 100 users try withdrawal:
+
+Only one runs at a time → fully safe.
+
+⚠ Slowest → heavy locking → low performance.
+
+Use only when absolute consistency required.
+
+Spring Boot Usage
+@Transactional(isolation = Isolation.READ_COMMITTED)
+public void transferMoney() {
+    // transfer logic
+}
+
+All Isolation Options in Spring
+Isolation.READ_UNCOMMITTED
+Isolation.READ_COMMITTED
+Isolation.REPEATABLE_READ
+Isolation.SERIALIZABLE
+Isolation.DEFAULT   // DB default
+
+Banking Use Case Recommendation
+Operation	Isolation Level
+Balance check	READ_COMMITTED
+Money transfer	REPEATABLE_READ
+Critical ledger update	SERIALIZABLE
+Analytics / reports	READ_COMMITTED
+Interview Questions
+Q1: Which isolation used in banking?
+
+👉 REPEATABLE_READ or SERIALIZABLE
+
+Q2: Which is fastest?
+
+👉 READ_UNCOMMITTED
+
+Q3: Which is safest?
+
+👉 SERIALIZABLE
+
+Q4: Default in MySQL?
+
+👉 REPEATABLE_READ
+
+Q5: What problem does isolation solve?
+
+👉 Dirty Read, Non-Repeatable Read, Phantom Read, Concurrency issues
+
+Real Issue You Faced (Double Withdrawal)
+
+Without proper isolation:
+
+User A withdraw 500
+User B withdraw 500
+Balance = 500 ❌ (should be 0)
+
+
+Fix:
+
+REPEATABLE_READ
+
+Optimistic locking (@Version)
+
+Pessimistic locking (FOR UPDATE)
+@Transactional(isolation = Isolation.READ_COMMITTED)
+
+Isolation	Prevents
+READ_UNCOMMITTED	Nothing
+READ_COMMITTED	Dirty Read
+REPEATABLE_READ	Dirty + Non-repeatable
+SERIALIZABLE	All anomalies
+Banking Example
+@Transactional(isolation = Isolation.SERIALIZABLE)
+public void withdraw() {}
+
+
+✔ Prevents double withdrawal
+
+🧠 6. ReadOnly Transaction (Performance Boost)
+A read-only transaction tells Spring & Hibernate:
+
+“This transaction will NOT modify data — only read.”
+
+So Hibernate:
+
+Skips dirty checking
+
+Skips flush
+
+Avoids unnecessary locks
+
+Uses optimized execution
+
+➡ Result: Faster queries + Less memory + Better throughput
+
+Normal vs ReadOnly Transaction
+Normal Transaction
+@Transactional
+public Account getAccount(Long id) {
+    return accountRepo.findById(id).orElseThrow();
+}
+
+
+Hibernate:
+
+Tracks entity changes
+
+Performs dirty checking
+
+May flush before query
+
+Higher overhead
+
+ReadOnly Transaction
+@Transactional(readOnly = true)
+public Account getAccount(Long id) {
+    return accountRepo.findById(id).orElseThrow();
+}
+
+
+Hibernate optimization:
+
+❌ No dirty checking
+
+❌ No flush
+
+❌ No write lock
+
+✔ Faster execution
+
+Where to Use ReadOnly
+
+Use for pure read operations only
+
+Examples
+
+✔ Balance check
+✔ Transaction history
+✔ Reports / Analytics
+✔ User profile fetch
+✔ Dashboard queries
+
+Where NOT to Use
+
+❌ Money transfer
+❌ Insert / Update / Delete
+❌ Ledger update
+❌ Audit save
+
+If you modify inside readOnly → changes may NOT persist
+
+Internal Optimization (Important)
+
+When readOnly = true:
+
+Hibernate sets:
+
+FlushMode = MANUAL
+
+
+So:
+
+No auto flush
+
+No dirty checking
+
+No update SQL generation
+
+This is why performance improves.
+
+Example — Banking Service
+@Service
+public class AccountQueryService {
+
+    @Transactional(readOnly = true)
+    public Double getBalance(Long accountId) {
+        return accountRepo.findBalanceById(accountId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Transaction> getStatement(Long accountId) {
+        return txnRepo.findByAccountId(accountId);
+    }
+}
+
+Performance Gain (Real World)
+Case	Without ReadOnly	With ReadOnly
+Memory usage	High	Low
+Dirty checking	Yes	No
+Flush	Yes	No
+Speed	Normal	Faster
+CPU	More	Less
+Interview Questions
+Q1: What does readOnly=true do?
+
+Disables dirty checking & flush → improves performance.
+
+Q2: Can we write inside readOnly transaction?
+
+You can, but changes may not persist (not recommended).
+
+Q3: Does it lock rows?
+
+No write locks — better concurrency.
+
+Q4: When to use?
+
+Read-heavy operations.
+
+Advanced Tip (Senior Level)
+
+For heavy read systems:
+
+Use readOnly = true
+
+Use projections (DTO queries)
+
+Use pagination
+
+Use caching
+
+Use index in DB
+
+This combination gives massive performance boost
+@Transactional(readOnly = true)
+public Account getAccount(Long id) {}
+
+
+Benefits:
+
+No dirty checking
+
+Faster
+
+Hibernate optimization
+
+🧠 7. Timeout (Prevent Long Locks)
+What is Transaction Timeout?
+
+timeout defines maximum time (in seconds) a transaction is allowed to run.
+
+If transaction exceeds this time → Spring automatically rolls back.
+
+@Transactional(timeout = 5)
+
+
+Means:
+
+Transaction must finish within 5 seconds or it will be rolled back
+
+Why Timeout is Important?
+
+Without timeout:
+
+Long query may lock rows for long time
+
+Other transactions get blocked
+
+Thread pool gets exhausted
+
+System becomes slow / hangs
+
+With timeout:
+
+Prevents long DB locks
+
+Avoids deadlocks
+
+Keeps system responsive
+
+Auto rollback on slow query
+
+Example
+@Transactional(timeout = 3)
+public void transfer(Long fromId, Long toId, double amount) {
+
+    Account from = repo.findById(fromId).orElseThrow();
+    Account to   = repo.findById(toId).orElseThrow();
+
+    from.withdraw(amount);
+
+    // Simulate slow DB call
+    try { Thread.sleep(5000); } catch (Exception e) {}
+
+    to.deposit(amount);
+}
+
+What happens?
+
+Timeout = 3 sec
+
+Code sleeps 5 sec
+
+Spring throws:
+
+TransactionTimedOutException
+
+
+➡ Transaction ROLLBACK
+➡ No money deducted
+➡ No partial update
+
+Real Banking Use Case
+
+Use timeout in:
+
+Money transfer
+
+Ledger update
+
+Bulk settlement
+
+Payment processing
+
+External API inside transaction
+
+Example:
+
+@Transactional(timeout = 10)
+public void processPayment() { }
+
+Default Timeout
+
+If not set:
+
+Timeout = -1 (No limit)
+
+
+Which is dangerous in production.
+
+Always define timeout for critical writes.
+
+Timeout + Lock Example
+@Transactional(timeout = 5)
+@Lock(LockModeType.PESSIMISTIC_WRITE)
+public Account lockAccount(Long id) {
+    return repo.findById(id).orElseThrow();
+}
+
+
+If row lock waits > 5 sec → rollback occurs → prevents long blocking.
+
+Important Interview Questions
+Q1: What happens when timeout occurs?
+
+Spring throws TransactionTimedOutException and rolls back.
+
+Q2: Does timeout cancel SQL query?
+
+Depends on DB + driver. Usually transaction marked rollback-only.
+
+Q3: Default timeout?
+
+-1 (No timeout).
+
+Q4: Why needed?
+
+Prevent long locks, deadlocks, slow system.
+
+Best Practice (Senior Level)
+
+Use timeout in:
+
+@Transactional(
+    timeout = 5,
+    isolation = Isolation.READ_COMMITTED,
+    propagation = Propagation.REQUIRED
+)
+
+
+For:
+
+Write-heavy operations
+
+Lock-based queries
+
+External API inside transaction
+
+Batch processing
+
+If you want continue Day 14 Advanced Transactions, say next.
+
+Next topics:
+
+Nested Transactions
+
+REQUIRES_NEW deep dive
+
+Self-invocation problem
+
+Transaction + Async issue
+
+Real production transaction strategy 🚀
+@Transactional(timeout = 5)
+public void slowQuery() {}
+
+
+If >5 sec → rollback
+
+🧠 8. Flush vs Commit (Important)
+
+What is Flush?
+
+Flush = Push SQL to DB (but NOT permanent)
+
+Hibernate converts entity changes → SQL
+
+Executes SQL in DB
+
+But transaction is still open
+
+Data can be rolled back
+
+Entity → SQL → DB (temporary)
+
+
+👉 Happens automatically before:
+
+Commit
+
+Query execution (sometimes)
+
+Manual flush()
+
+2. What is Commit?
+
+Commit = Final Save (Permanent)
+
+Ends transaction
+
+Makes changes permanent
+
+Cannot rollback after commit
+
+Flush → Commit → Permanent save
+
+Flush vs Commit — Key Difference
+Feature	Flush	Commit
+Sends SQL to DB	✅ Yes	✅ Yes
+Makes data permanent	❌ No	✅ Yes
+Can rollback	✅ Yes	❌ No
+Ends transaction	❌ No	✅ Yes
+Happens automatically	✅ Yes	✅ Yes
+Example
+@Transactional
+public void transfer() {
+
+    Account a = repo.findById(1L).get();
+    a.setBalance(500);
+
+    entityManager.flush();   // SQL executed but NOT permanent
+
+    if(true) throw new RuntimeException();  // simulate error
+}
+
+What happens?
+
+Flush sends UPDATE to DB
+
+Exception occurs
+
+Transaction ROLLBACK
+
+Balance NOT updated ❌
+
+👉 Because Flush ≠ Commit
+
+Commit Example
+@Transactional
+public void transfer() {
+
+    Account a = repo.findById(1L).get();
+    a.setBalance(500);
+}
+
+
+When method ends normally:
+
+Hibernate flushes automatically
+
+Then commit happens
+
+Data saved permanently ✅
+
+When Hibernate Flushes Automatically?
+
+Hibernate flush occurs:
+
+Before Commit
+
+Before executing JPQL/SQL query
+
+When calling entityManager.flush()
+
+Flush Modes (Advanced)
+entityManager.setFlushMode(FlushModeType.AUTO);   // default
+entityManager.setFlushMode(FlushModeType.COMMIT);
+
+AUTO (Default)
+
+Flush before commit + before queries
+
+COMMIT
+
+Flush only at commit → better performance
+
+Real Banking Use Case
+
+Flush useful when:
+
+Need DB constraint validation early
+
+Detect duplicate entry before commit
+
+Batch processing
+
+Prevent memory buildup in large loops
+
+Example:
+
+for(int i=0;i<10000;i++){
+    repo.save(txn);
+    if(i % 50 == 0){
+        entityManager.flush();
+        entityManager.clear();
+    }
+}
+
+
+Used in high-performance batch inserts
+
+Interview Questions (Very Important)
+Q1: Does flush save data permanently?
+
+❌ No. Only commit makes permanent.
+
+Q2: Can rollback happen after flush?
+
+✅ Yes.
+
+Q3: When does Hibernate flush automatically?
+
+Before commit and before queries (AUTO mode).
+
+Q4: Why use manual flush?
+
+Early validation
+
+Batch performance
+
+Memory control
+
+Q5: Flush vs SaveAndFlush (Spring Data JPA)?
+repo.save(entity);        // flush later
+repo.saveAndFlush(entity); // flush immediately
+
+Senior-Level Understanding
+
+Transaction flow internally:
+
+Start Transaction
+   ↓
+Modify Entity (Dirty Checking)
+   ↓
+Flush → SQL executed
+   ↓
+Commit → Permanent Save
+
+
+If error occurs before commit → Rollback everything
+Operation	Meaning
+flush()	Sync to DB (not commit)
+commit()	Permanent save
+Demo
+@Transactional
+public void demo() {
+    repo.save(acc);
+    repo.flush();   // SQL executed here
+}
+
+🧠 9. Transaction Synchronization (After Commit Hook)
+What is it?
+
+Transaction Synchronization = Execute logic AFTER transaction commits successfully
+
+Used when you want to:
+
+Send Kafka event only if DB commit succeeds
+
+Send email / notification after money transfer
+
+Write audit log after transaction success
+
+Avoid duplicate / inconsistent actions
+
+👉 Prevents DB success but event failure problem
+
+Why Needed?
+
+Without synchronization:
+
+@Transactional
+public void transfer() {
+    repo.save(txn);          // DB save
+    kafka.send("TRANSFER");  // ❌ What if DB rolls back?
+}
+
+
+Problem:
+
+Kafka sent ❌
+
+DB rolled back ❌
+
+Data inconsistency
+
+Solution: After Commit Hook
+
+Spring gives:
+
+TransactionSynchronizationManager
+
+Basic Example
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
+@Transactional
+public void transfer() {
+
+    repo.save(txn);
+
+    TransactionSynchronizationManager.registerSynchronization(
+        new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                System.out.println("Transaction committed!");
+                kafkaProducer.send("TRANSFER SUCCESS");
+            }
+        }
+    );
+}
+
+Flow
+Start TX
+   ↓
+DB Save
+   ↓
+Commit Success
+   ↓
+afterCommit() runs
+   ↓
+Kafka/Event/Email triggered
+
+
+If rollback happens → afterCommit NOT executed
+
+Key Hooks Available
+Method	When Called
+beforeCommit()	Just before commit
+afterCommit()	After successful commit ✅
+afterCompletion()	After commit OR rollback
+beforeCompletion()	Before transaction ends
+Real Banking Example
+@Transactional
+public void transfer(Long from, Long to, Double amount) {
+
+    debit(from, amount);
+    credit(to, amount);
+    transactionRepo.save(txn);
+
+    TransactionSynchronizationManager.registerSynchronization(
+        new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                notificationService.sendTransferSuccess(txn);
+                kafkaProducer.publish(txn);
+                auditService.log(txn);
+            }
+        }
+    );
+}
+
+
+Guarantee:
+
+If DB fails → No Kafka ❌
+
+If DB commits → Kafka + Audit + Notification ✅
+
+Interview Questions (Very Important)
+Q1: Why use TransactionSynchronization?
+
+To execute logic only after successful DB commit.
+
+Q2: What happens if transaction rolls back?
+
+afterCommit() will NOT execute.
+
+Q3: Difference: @TransactionalEventListener vs Synchronization?
+Feature	TransactionSynchronization	TransactionalEventListener
+Low-level	Yes	No
+Cleaner	No	Yes ✅
+Recommended	❌	✅
+Better Approach (Spring Recommended)
+Using @TransactionalEventListener
+Step 1 — Publish Event
+applicationEventPublisher.publishEvent(new TransferEvent(txn));
+
+Step 2 — Listen After Commit
+@Component
+public class TransferListener {
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handle(TransferEvent event) {
+        kafkaProducer.send(event.getTxn());
+        auditService.log(event.getTxn());
+    }
+}
+
+
+Cleaner + production-safe ✅
+
+When to Use in Real Systems?
+
+Kafka publish after DB commit
+
+Audit logging
+
+Email/SMS after transaction
+
+Cache update after commit
+
+Distributed transactions (Outbox pattern)
+
+Common Mistake
+
+❌ Calling Kafka/Email inside transaction
+✔ Use After Commit Hook
+
+If you want continue Day 14 Advanced Transactions, say next.
+
+Next topics:
+
+Nested Transactions
+
+REQUIRES_NEW Deep Dive
+
+Transaction + Async Problem
+
+Self Invocation Issue
+
+Production Transaction Strategy 🚀
+
+Used in:
+
+Kafka event publish
+
+Email send
+
+Notification
+
+TransactionSynchronizationManager.registerSynchronization(
+    new TransactionSynchronizationAdapter() {
+        @Override
+        public void afterCommit() {
+            System.out.println("Send Event after DB commit");
+        }
+    }
+);
+
+🧠 10. Common Production Problems
+❌ LazyInitializationException
+
+Cause: accessing lazy outside tx
+Fix: use DTO / fetch join / transactional
+
+❌ Deadlock
+
+Fix: Retry
+
+@Transactional
+@Retryable(maxAttempts = 3)
+public void transfer() {}
+
+❌ Long Running Transaction
+
+Fix:
+
+Keep tx small
+
+No external API inside tx
+
+🧠 11. How Spring Chooses Transaction Manager
+
+Auto-detects:
+
+JpaTransactionManager → JPA
+
+DataSourceTransactionManager → JDBC
+
+ChainedTransactionManager → Multiple DB
+
+🧠 12. Debug Transaction Logs
+logging.level.org.springframework.transaction=TRACE
+
+
+Shows:
+
+Tx begin
+
+Commit
+
+Rollback
+
+Propagation
+
+🧪 13. Real Banking Transfer (Production Style)
+@Transactional(
+    isolation = Isolation.REPEATABLE_READ,
+    propagation = Propagation.REQUIRED,
+    rollbackFor = Exception.class,
+    timeout = 10
+)
+public void transfer(Long from, Long to, double amount) {
+
+    Account sender = repo.findByIdForUpdate(from);
+    Account receiver = repo.findByIdForUpdate(to);
+
+    if (sender.getBalance() < amount)
+        throw new RuntimeException("Insufficient");
+
+    sender.setBalance(sender.getBalance() - amount);
+    receiver.setBalance(receiver.getBalance() + amount);
+}
+
+🧠 Interview Mastery (Day 14)
+
+You should now answer:
+
+How @Transactional works internally?
+
+Why self-invocation fails?
+
+Propagation types?
+
+Isolation vs Locking?
+
+Flush vs Commit?
+
+When rollback happens?
+
+ReadOnly benefit?
+
+How to debug transactions?
+
+REQUIRES_NEW use case?
+
+How to prevent deadlocks?

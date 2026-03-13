@@ -1,0 +1,1940 @@
+✅ Day 17 – Logging + Audit + Correlation IDs
+
+Goal: Make your banking microservice production-grade with traceable logs, business audit trails, and request correlation across services.
+
+This is mandatory in real systems (especially banking/trading).
+
+🧠 Why This Matters
+
+In a real banking flow:
+
+Client → Gateway → Account Service → Transaction Service → Notification Service
+
+If a transfer fails and you don’t have correlation ID, you cannot trace the flow.
+
+Production teams rely heavily on:
+
+Structured logging
+
+Correlation IDs
+
+Persistent audit logs
+
+Log aggregation (ELK / Splunk)
+
+🏗 Final Architecture
+HTTP Request
+   ↓
+CorrelationIdFilter (Generate/Read ID)
+   ↓
+Controller
+   ↓
+Service
+   ↓
+Audit Aspect (AOP)
+   ↓
+Logs + Audit DB
+
+1️⃣ Structured Logging Configuration
+application.yml
+logging:
+  level:
+    root: INFO
+    com.bank: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%X{correlationId}] %-5level %logger{36} - %msg%n"
+
+What %X{correlationId} means:
+
+It pulls the value from MDC (Mapped Diagnostic Context).
+
+2️⃣ Correlation ID Filter
+CorrelationIdFilter.java
+@Component
+public class CorrelationIdFilter extends OncePerRequestFilter {
+
+    private static final String CORRELATION_ID = "correlationId";
+    private static final String HEADER_NAME = "X-Correlation-ID";
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain)
+            throws ServletException, IOException {
+
+        String correlationId = request.getHeader(HEADER_NAME);
+
+        if (correlationId == null || correlationId.isEmpty()) {
+            correlationId = UUID.randomUUID().toString();
+        }
+
+        MDC.put(CORRELATION_ID, correlationId);
+        response.setHeader(HEADER_NAME, correlationId);
+
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            MDC.clear(); // prevent memory leak
+        }
+    }
+}
+
+3️⃣ Logging in Service Layer
+TransferService.java
+@Service
+@Slf4j
+public class TransferService {
+
+    public void transfer(String from, String to, BigDecimal amount) {
+
+        log.info("Transfer started | From: {} | To: {} | Amount: {}",
+                 from, to, amount);
+
+        // business logic
+
+        log.info("Transfer completed successfully");
+    }
+}
+
+🔥 Example Log Output
+2026-02-22 11:20:10 [ab12-cd34-xyz] INFO TransferService - Transfer started...
+2026-02-22 11:20:11 [ab12-cd34-xyz] INFO TransferService - Transfer completed...
+
+
+Same correlation ID across entire request.
+
+4️⃣ Audit Logging Using AOP (Clean Architecture)
+
+We do NOT mix audit logic inside business code.
+
+Step 1: Create Audit Annotation
+Audit.java
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Audit {
+    String action();
+}
+
+Step 2: Audit Aspect
+@Aspect
+@Component
+@Slf4j
+@RequiredArgsConstructor
+public class AuditAspect {
+
+    private final AuditRepository auditRepository;
+
+    @Around("@annotation(audit)")
+    public Object audit(ProceedingJoinPoint joinPoint,
+                        Audit audit) throws Throwable {
+
+        String correlationId = MDC.get("correlationId");
+
+        log.info("AUDIT START - {}", audit.action());
+
+        Object result = joinPoint.proceed();
+
+        AuditLog logEntity = new AuditLog();
+        logEntity.setAction(audit.action());
+        logEntity.setCorrelationId(correlationId);
+        logEntity.setTimestamp(LocalDateTime.now());
+
+        auditRepository.save(logEntity);
+
+        log.info("AUDIT END - {}", audit.action());
+
+        return result;
+    }
+}
+
+5️⃣ Audit Entity
+@Entity
+public class AuditLog {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String action;
+    private String correlationId;
+    private LocalDateTime timestamp;
+}
+
+6️⃣ Use Audit in Service
+
+Use Audit in Service (Clean + Professional Way)
+
+Now we connect everything properly.
+
+Goal:
+
+✔ Business logic stays clean
+✔ No manual audit save in service
+✔ Audit handled automatically via AOP
+✔ Correlation ID automatically linked
+
+This is how real banking systems are built.
+
+🏗 Final Flow
+Controller
+   ↓
+TransferService.transfer()  ← annotated with @Audit
+   ↓
+AuditAspect intercepts
+   ↓
+Business executes
+   ↓
+Audit saved in DB
+1️⃣ Simple Usage in Service
+TransferService.java
+@Service
+@Slf4j
+@RequiredArgsConstructor
+public class TransferService {
+
+    private final AccountRepository accountRepository;
+    private final TransactionRepository transactionRepository;
+
+    @Audit(action = "MONEY_TRANSFER")
+    @Transactional
+    public void transfer(String fromAcc, String toAcc, BigDecimal amount) {
+
+        log.info("Transfer started | from={} | to={} | amount={}",
+                fromAcc, toAcc, amount);
+
+        Account from = accountRepository.findByAccountNumber(fromAcc)
+                .orElseThrow(() -> new RuntimeException("Source account not found"));
+
+        Account to = accountRepository.findByAccountNumber(toAcc)
+                .orElseThrow(() -> new RuntimeException("Destination account not found"));
+
+        if (from.getBalance().compareTo(amount) < 0) {
+            throw new RuntimeException("Insufficient balance");
+        }
+
+        from.debit(amount);
+        to.credit(amount);
+
+        transactionRepository.save(
+                new Transaction(fromAcc, toAcc, amount)
+        );
+
+        log.info("Transfer completed successfully");
+    }
+}
+
+That’s it.
+
+No auditRepository here.
+
+Clean architecture maintained.
+
+🧠 What Happens Internally?
+
+When transfer() is called:
+
+1️⃣ Spring proxy intercepts method
+2️⃣ AuditAspect runs
+3️⃣ It calls joinPoint.proceed()
+4️⃣ If success → saves SUCCESS audit
+5️⃣ If exception → saves FAILED audit
+
+🧪 Example DB Records
+Successful Transfer
+action	status	correlationId
+MONEY_TRANSFER	SUCCESS	abc-123
+Failed Transfer (Insufficient Balance)
+action	status	correlationId
+MONEY_TRANSFER_FAILED	FAILED	abc-123
+🔥 Advanced Version (Recommended)
+
+Improve annotation:
+
+Audit.java
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Audit {
+    String action();
+    String entityType() default "";
+}
+
+Then use:
+
+@Audit(action = "MONEY_TRANSFER", entityType = "ACCOUNT")
+
+More flexible.
+
+💎 Even Better: Capture Entity ID Automatically
+
+Inside AuditAspect, you can inspect method arguments:
+
+Object[] args = joinPoint.getArgs();
+
+Example:
+
+String fromAccount = (String) args[0];
+
+Save it as entityId.
+
+Now audit becomes powerful.
+
+🧠 Interview Questions
+Why not call auditRepository manually in service?
+
+Violates Single Responsibility Principle.
+
+Why use AOP?
+
+Cross-cutting concern (logging, security, transactions, auditing).
+
+What is proxy-based AOP?
+
+Spring creates runtime proxy around bean.
+
+What is limitation of Spring AOP?
+
+Only works on public methods & proxy calls.
+
+(Self-invocation problem – very important)
+
+⚠ Important Production Tip
+
+If audit fails, do NOT break main transaction.
+
+Use:
+
+@Transactional(propagation = Propagation.REQUIRES_NEW)
+
+For audit saving.
+
+Otherwise:
+Main business may rollback.
+
+🚀 You Now Have
+
+✔ Clean Service Layer
+✔ Automatic audit
+✔ Correlation tracking
+✔ Scalable design
+✔ Senior-level backend architecture
+@Audit(action = "MONEY_TRANSFER")
+public void transfer(String from, String to, BigDecimal amount) {
+    // transfer logic
+}
+
+7️⃣ Propagate Correlation ID in Microservices (Feign)
+Now we make correlation ID travel across services.
+
+Without propagation:
+
+API Gateway  →  Account Service  →  Transaction Service
+   abc-123          ❌ new id            ❌ new id
+
+Debugging becomes impossible.
+
+With propagation:
+
+API Gateway  →  Account Service  →  Transaction Service
+   abc-123          abc-123              abc-123
+
+Production-ready distributed tracing.
+
+🧠 Goal
+
+✔ Read Correlation ID from MDC
+✔ Add it to outgoing Feign requests
+✔ Downstream service receives same ID
+✔ Logs across services share same ID
+
+🏗 Architecture Flow
+Incoming Request
+   ↓
+CorrelationIdFilter sets MDC
+   ↓
+Service calls Feign client
+   ↓
+Feign RequestInterceptor adds header
+   ↓
+Downstream service filter reads header
+   ↓
+MDC set again
+1️⃣ Step 1 – Create Feign Interceptor
+CorrelationFeignInterceptor.java
+package com.bank.config;
+
+import feign.RequestInterceptor;
+import feign.RequestTemplate;
+import org.slf4j.MDC;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class CorrelationFeignInterceptor {
+
+    private static final String HEADER_NAME = "X-Correlation-ID";
+
+    @Bean
+    public RequestInterceptor requestInterceptor() {
+        return new RequestInterceptor() {
+            @Override
+            public void apply(RequestTemplate template) {
+
+                String correlationId = MDC.get("correlationId");
+
+                if (correlationId != null) {
+                    template.header(HEADER_NAME, correlationId);
+                }
+            }
+        };
+    }
+}
+
+That’s it.
+
+Every Feign call now carries correlation ID.
+
+2️⃣ Step 2 – Feign Client Example
+@FeignClient(name = "notification-service")
+public interface NotificationClient {
+
+    @PostMapping("/notify")
+    void sendNotification(@RequestBody NotificationRequest request);
+}
+
+When sendNotification() is called:
+
+Header automatically includes:
+
+X-Correlation-ID: abc-123
+3️⃣ Step 3 – Downstream Service Filter
+
+Your existing CorrelationIdFilter should already handle:
+
+String correlationId = request.getHeader("X-Correlation-ID");
+
+So downstream service reuses same ID.
+
+No extra change needed.
+
+🧪 End-to-End Example
+
+User calls:
+
+POST /transfer
+
+Headers:
+
+X-Correlation-ID: abc-123
+
+Logs in:
+
+Account Service
+{
+  "correlationId": "abc-123",
+  "message": "Transfer initiated"
+}
+Transaction Service
+{
+  "correlationId": "abc-123",
+  "message": "Transaction saved"
+}
+Notification Service
+{
+  "correlationId": "abc-123",
+  "message": "Notification sent"
+}
+
+🔥 Now debugging across microservices is easy.
+
+🧠 Important: What If Client Does NOT Send ID?
+
+Your filter generates one:
+
+UUID.randomUUID().toString();
+
+And Feign propagates that.
+
+So full chain still works.
+
+⚠ Important: Async + Feign Problem
+
+If using:
+
+@Async
+
+CompletableFuture
+
+Kafka
+
+MDC does NOT automatically propagate.
+
+You must manually copy MDC context.
+
+Otherwise Feign interceptor won’t see correlationId.
+
+Senior-level interview trap.
+
+💎 Production Enhancement
+
+Instead of manual header name, define constant:
+
+public static final String CORRELATION_HEADER = "X-Correlation-ID";
+
+Use everywhere.
+
+Avoid typo bugs.
+
+🧠 Interview Questions
+Q: How do you propagate correlation ID in microservices?
+
+Using Feign RequestInterceptor.
+
+Q: Why use MDC?
+
+Thread-local logging context.
+
+Q: What happens in async?
+
+MDC lost unless manually propagated.
+
+Q: Difference between Correlation ID and Trace ID?
+
+Correlation ID = manual custom
+Trace ID = OpenTelemetry standard
+
+🚀 You Now Have
+
+✔ Distributed request tracing
+✔ Consistent logs across services
+✔ Clean Feign configuration
+✔ Enterprise architecture pattern
+If you call another service:
+
+@Bean
+public RequestInterceptor correlationInterceptor() {
+    return template -> {
+        String correlationId = MDC.get("correlationId");
+        if (correlationId != null) {
+            template.header("X-Correlation-ID", correlationId);
+        }
+    };
+}
+
+
+Now correlation ID flows across services.
+
+8️⃣ Logging vs Audit (Interview Question)
+Logging	Audit
+Debugging	Compliance
+Temporary	Permanent
+Technical events	Business events
+Can be disabled	Mandatory
+9️⃣ Production Best Practices
+
+✔ Never log:
+
+Passwords
+
+JWT tokens
+
+Card numbers
+
+Full financial details
+
+✔ Use:
+
+INFO → Business events
+
+DEBUG → Development
+
+ERROR → Failures
+
+✔ Use centralized log storage (ELK, Splunk).
+
+🔟 Advanced: Async & Correlation ID
+Advanced: Async & Correlation ID (Production-Grade Solution)
+
+Now we go into senior-level distributed system topic.
+
+Problem:
+
+When you use:
+
+@Async
+
+CompletableFuture
+
+Thread pools
+
+Kafka listeners
+
+👉 MDC context (Correlation ID) is LOST
+
+Why?
+
+Because MDC is ThreadLocal.
+
+New thread = new empty MDC.
+
+🧠 Problem Demonstration
+
+Main request thread:
+
+correlationId = abc-123
+
+Then:
+
+@Async
+public void sendNotification() {
+    log.info("Sending notification");
+}
+
+Log output:
+
+correlationId = null ❌
+
+Broken tracing.
+
+🎯 Goal
+
+✔ Copy MDC from parent thread
+✔ Set it in async thread
+✔ Clear after execution
+
+✅ Solution 1: TaskDecorator (BEST PRACTICE)
+
+This is the cleanest enterprise solution.
+
+Step 1 – Create MDC TaskDecorator
+package com.bank.config;
+
+import org.slf4j.MDC;
+import org.springframework.core.task.TaskDecorator;
+
+import java.util.Map;
+
+public class MdcTaskDecorator implements TaskDecorator {
+
+    @Override
+    public Runnable decorate(Runnable runnable) {
+
+        Map<String, String> contextMap = MDC.getCopyOfContextMap();
+
+        return () -> {
+            try {
+                if (contextMap != null) {
+                    MDC.setContextMap(contextMap);
+                }
+                runnable.run();
+            } finally {
+                MDC.clear();
+            }
+        };
+    }
+}
+Step 2 – Configure Async Executor
+package com.bank.config;
+
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+
+import java.util.concurrent.Executor;
+
+@Configuration
+@EnableAsync
+public class AsyncConfig {
+
+    @Bean(name = "asyncExecutor")
+    public Executor asyncExecutor() {
+
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(5);
+        executor.setMaxPoolSize(10);
+        executor.setQueueCapacity(100);
+
+        executor.setTaskDecorator(new MdcTaskDecorator());
+
+        executor.initialize();
+        return executor;
+    }
+}
+Step 3 – Use @Async
+@Async("asyncExecutor")
+public void sendNotification(String message) {
+    log.info("Sending notification asynchronously");
+}
+
+Now logs contain same correlation ID.
+
+🧪 Before Fix
+Main thread → correlationId=abc-123
+Async thread → correlationId=null ❌
+🧪 After Fix
+Main thread → correlationId=abc-123
+Async thread → correlationId=abc-123 ✅
+✅ Solution 2: CompletableFuture Manual Copy
+
+If using manual executor:
+
+Map<String, String> contextMap = MDC.getCopyOfContextMap();
+
+executor.submit(() -> {
+    MDC.setContextMap(contextMap);
+    try {
+        log.info("Async logic");
+    } finally {
+        MDC.clear();
+    }
+});
+
+Works, but repetitive.
+
+TaskDecorator is better.
+
+✅ Kafka Listener Correlation Handling
+
+For Kafka:
+
+Producer:
+
+kafkaTemplate.send("topic", message)
+             .addCallback(...);
+
+Add correlation header:
+
+ProducerRecord<String, String> record =
+    new ProducerRecord<>("topic", message);
+
+record.headers().add("X-Correlation-ID",
+    MDC.get("correlationId").getBytes());
+
+kafkaTemplate.send(record);
+
+Consumer:
+
+@KafkaListener(topics = "topic")
+public void listen(ConsumerRecord<String, String> record) {
+
+    Header header = record.headers().lastHeader("X-Correlation-ID");
+
+    if (header != null) {
+        String correlationId = new String(header.value());
+        MDC.put("correlationId", correlationId);
+    }
+
+    try {
+        log.info("Processing Kafka message");
+    } finally {
+        MDC.clear();
+    }
+}
+
+Now correlation ID works across:
+
+HTTP → Feign → Kafka → Consumer.
+
+🧠 Why Clear MDC?
+
+Thread pools reuse threads.
+
+If you don’t clear:
+
+Next request may get wrong correlation ID.
+
+This is a serious production bug.
+
+🏦 Real Banking Flow
+
+User transfer:
+
+API → Account Service → Kafka → Notification Service
+
+With proper MDC propagation:
+
+correlationId = abc-123 everywhere
+
+Without it:
+
+Nightmare debugging.
+
+🧠 Interview Questions
+Q: Why is MDC lost in async?
+
+Because MDC uses ThreadLocal.
+
+Q: How to propagate?
+
+TaskDecorator or manual context copy.
+
+Q: What is ThreadLocal?
+
+Thread-specific storage in JVM.
+
+Q: What happens in thread pools?
+
+Threads reused → must clear MDC.
+
+🚀 You Now Have
+
+✔ Correlation ID across async threads
+✔ Kafka correlation propagation
+✔ Production-safe MDC handling
+✔ Senior-level distributed tracing knowledge
+If you use:
+
+@Async
+
+Kafka
+
+Thread pools
+
+You must manually propagate MDC.
+
+Otherwise correlation ID is lost.
+
+🧠 Interview Deep Questions
+
+What is MDC?
+→ Thread-local logging context.
+
+Why clear MDC?
+→ Prevent memory leak in thread pools.
+
+How to trace distributed transactions?
+→ Correlation ID or OpenTelemetry.
+
+Difference between Audit and Event Sourcing?
+→ Audit logs business actions; event sourcing stores state changes as events.
+
+🚀 Now Your Backend Has:
+
+✔ Validation
+✔ Global Exception Handling
+✔ Caching
+✔ Transactions
+✔ Logging
+✔ Audit Trail
+✔ Correlation ID tracing
+
+You’re now writing senior-level backend code.
+Structured Logging Configuration (Production-Grade Setup)
+
+Structured logging means:
+👉 Logs are machine-readable (JSON format)
+👉 Easy to search in ELK / Splunk / Datadog
+👉 Includes correlationId, timestamp, service name, level, etc.
+
+This is how real banking/trading systems log.
+
+🧠 Why Structured Logging?
+
+Bad (plain text):
+
+Transfer failed for account 123
+
+
+Good (structured JSON):
+
+{
+  "timestamp": "2026-02-22T11:35:10",
+  "level": "ERROR",
+  "service": "banking-service",
+  "correlationId": "abc-123",
+  "message": "Transfer failed",
+  "fromAccount": "123",
+  "error": "Insufficient balance"
+}
+
+
+Now logs are searchable and analyzable.
+
+🏗 Step 1 – Add Logstash Encoder Dependency
+pom.xml
+<dependency>
+    <groupId>net.logstash.logback</groupId>
+    <artifactId>logstash-logback-encoder</artifactId>
+    <version>7.4</version>
+</dependency>
+
+🏗 Step 2 – Create logback-spring.xml
+
+Create inside:
+
+src/main/resources/logback-spring.xml
+
+Basic JSON Structured Logging Config
+<configuration>
+
+    <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <customFields>
+                {
+                  "service":"banking-service"
+                }
+            </customFields>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="JSON_CONSOLE"/>
+    </root>
+
+</configuration>
+
+🧪 Sample Output
+{
+  "@timestamp": "2026-02-22T11:42:12.234+05:30",
+  "level": "INFO",
+  "logger_name": "com.bank.transfer.TransferService",
+  "thread_name": "http-nio-8080-exec-1",
+  "message": "Transfer completed successfully",
+  "service": "banking-service"
+}
+
+
+Already production-ready JSON logs.
+
+🏗 Step 3 – Add Correlation ID Automatically
+
+Modify encoder:
+
+<encoder class="net.logstash.logback.encoder.LogstashEncoder">
+    <includeMdc>true</includeMdc>
+    <customFields>
+        {
+          "service":"banking-service"
+        }
+    </customFields>
+</encoder>
+
+
+Now if MDC contains:
+
+MDC.put("correlationId", "abc-123")
+
+
+It appears automatically in logs.
+
+🧪 Output with Correlation ID
+{
+  "@timestamp": "2026-02-22T11:45:10.112+05:30",
+  "level": "INFO",
+  "message": "Transfer initiated",
+  "correlationId": "abc-123",
+  "service": "banking-service"
+}
+
+
+🔥 Now logs are fully traceable.
+
+🏗 Step 4 – Add Log Levels per Package
+
+Inside logback config:
+
+<logger name="com.bank" level="DEBUG"/>
+<logger name="org.springframework" level="WARN"/>
+
+
+This prevents log noise.
+
+🏗 Step 5 – Logging in Code (Best Practice)
+Use Slf4j + Lombok
+@Slf4j
+@Service
+public class TransferService {
+
+    public void transfer(String from, String to, BigDecimal amount) {
+
+        log.info("Transfer started | from={} | to={} | amount={}",
+                  from, to, amount);
+
+        try {
+            // business logic
+        } catch (Exception ex) {
+            log.error("Transfer failed | error={}", ex.getMessage(), ex);
+            throw ex;
+        }
+    }
+}
+
+🎯 Logging Best Practices (Very Important)
+❌ Never log:
+
+Passwords
+
+JWT tokens
+
+PAN / Aadhaar
+
+Full card numbers
+
+Sensitive financial data
+
+✔ Use Proper Levels
+Level	Usage
+TRACE	Rare debugging
+DEBUG	Development only
+INFO	Business events
+WARN	Recoverable issue
+ERROR	Failure
+🔥 Advanced: Add Application Name Automatically
+
+In application.yml:
+
+spring:
+  application:
+    name: banking-service
+
+
+Then modify logback:
+
+<springProperty scope="context" name="appName" source="spring.application.name"/>
+
+
+Use:
+
+<customFields>
+  {"service":"${appName}"}
+</customFields>
+
+
+Now reusable across microservices.
+
+🧠 Interview Questions
+What is structured logging?
+
+Logging in JSON format for machine processing.
+
+Why not plain logs?
+
+Hard to search in distributed systems.
+
+What is MDC?
+
+Thread-local context for adding metadata (like correlationId).
+
+Why use logstash encoder?
+
+To generate JSON logs easily.
+
+💎 Production Architecture
+Spring Boot
+   ↓
+JSON Logs
+   ↓
+Filebeat
+   ↓
+Logstash
+   ↓
+Elasticsearch
+   ↓
+Kibana Dashboard
+
+🚀 Your System Now Has:
+
+✔ Correlation ID
+✔ JSON structured logs
+✔ Audit logging
+✔ Clean log levels
+✔ Production pattern
+
+You are building enterprise-grade backend now.
+
+If you want next level, we can implement:
+
+1️⃣ Centralized logging with ELK
+2️⃣ OpenTelemetry tracing
+3️⃣ Resilience4j with logging integration
+4️⃣ Kafka logging & trace propagation
+
+Tell me what’s next 💪
+
+2️⃣ Correlation ID Filter
+✅ 2️⃣ Correlation ID Filter (Production-Grade Implementation)
+
+This is one of the most important components in distributed systems.
+
+Without correlation ID:
+❌ You cannot trace a request across logs
+❌ Debugging production becomes a nightmare
+❌ Microservices tracing becomes impossible
+
+With correlation ID:
+✔ Every log line for one request shares the same ID
+✔ Easy search in ELK / Splunk
+✔ Works across microservices
+
+🧠 What Is Correlation ID?
+
+A unique ID attached to every incoming HTTP request.
+
+Example:
+
+X-Correlation-ID: 7f8e-12ab-xyz
+
+
+If client sends one → we reuse it.
+If not → we generate one.
+
+🏗 How It Works
+HTTP Request
+   ↓
+Filter reads/generates Correlation ID
+   ↓
+Stores in MDC
+   ↓
+All logs automatically include it
+   ↓
+Returned in response header
+
+🛠 Step 1 – Create Filter
+CorrelationIdFilter.java
+package com.bank.config;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+import org.slf4j.MDC;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.util.UUID;
+
+@Component
+public class CorrelationIdFilter extends OncePerRequestFilter {
+
+    private static final String CORRELATION_ID = "correlationId";
+    private static final String HEADER_NAME = "X-Correlation-ID";
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain)
+            throws ServletException, IOException {
+
+        String correlationId = request.getHeader(HEADER_NAME);
+
+        // If client didn't send one, generate
+        if (correlationId == null || correlationId.isBlank()) {
+            correlationId = UUID.randomUUID().toString();
+        }
+
+        // Put into MDC (Thread-local storage)
+        MDC.put(CORRELATION_ID, correlationId);
+
+        // Add it to response header
+        response.setHeader(HEADER_NAME, correlationId);
+
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            // VERY IMPORTANT (avoid memory leaks)
+            MDC.clear();
+        }
+    }
+}
+
+🧠 Why OncePerRequestFilter?
+
+Ensures filter runs only once per request.
+
+Better than generic Filter.
+
+🧪 Test It
+
+Call API:
+
+POST /transfer
+
+
+Response headers:
+
+X-Correlation-ID: ab12-xy98-789
+
+
+Check logs:
+
+{
+  "@timestamp": "2026-02-22T12:05:10",
+  "level": "INFO",
+  "correlationId": "ab12-xy98-789",
+  "message": "Transfer initiated"
+}
+
+
+🔥 Same ID everywhere.
+
+🧠 What Is MDC?
+
+MDC = Mapped Diagnostic Context
+Thread-local map used by logging frameworks.
+
+Internally:
+
+Thread → MDC Map
+
+
+So each request thread has its own correlationId.
+
+⚠ Important: Clear MDC
+
+If you don't call:
+
+MDC.clear();
+
+
+Thread pools will reuse thread → wrong correlation ID → serious bug.
+
+Interview question guaranteed.
+
+🚀 Advanced: Propagate to Microservices (Feign)
+
+Add this:
+
+@Bean
+public RequestInterceptor correlationInterceptor() {
+    return template -> {
+        String correlationId = MDC.get("correlationId");
+        if (correlationId != null) {
+            template.header("X-Correlation-ID", correlationId);
+        }
+    };
+}
+
+
+Now downstream services receive same ID.
+
+🧠 What About Async?
+
+If you use:
+
+@Async
+
+CompletableFuture
+
+Kafka consumers
+
+MDC does NOT propagate automatically.
+
+You must manually copy it.
+
+Example for async:
+
+Map<String, String> contextMap = MDC.getCopyOfContextMap();
+
+executor.submit(() -> {
+    MDC.setContextMap(contextMap);
+    try {
+        // async logic
+    } finally {
+        MDC.clear();
+    }
+});
+
+
+Senior-level interview topic.
+
+🎯 Production Best Practices
+
+✔ Use standard header name:
+
+X-Correlation-ID
+
+
+✔ Always return ID in response header
+✔ Log correlationId in JSON structured logs
+✔ Propagate across services
+✔ Clear MDC
+
+🧠 Interview Deep Questions
+
+Q: Difference between correlation ID and trace ID?
+Correlation ID = custom manual ID
+Trace ID = OpenTelemetry / distributed tracing standard
+
+Q: Why not store in request attribute?
+Because logging framework needs MDC.
+
+Q: What happens in thread pools?
+MDC lost unless manually propagated.
+
+🏦 Real Banking Example
+
+User transfers ₹10,000.
+
+Logs across:
+
+API Gateway
+
+Account Service
+
+Transaction Service
+
+Notification Service
+
+All contain:
+
+correlationId: 7f8e-12ab-xyz
+
+
+Production debugging becomes easy.
+
+💎 You Now Have
+
+✔ Enterprise request tracing
+✔ Structured logs
+✔ Audit trail
+✔ Microservice propagation
+
+You're building 5+ years experience backend system now.
+
+Logging in Service Layer (Enterprise-Level Best Practices)
+
+Now we implement proper logging inside your Service layer for the banking microservice.
+
+This is where most backend engineers make mistakes.
+
+Service layer logging must:
+
+✔ Log business events
+✔ Log important state changes
+✔ Log failures properly
+✔ Never leak sensitive data
+✔ Use structured placeholders
+
+🧠 Why Log in Service Layer?
+
+Controller → handles HTTP
+Repository → handles DB
+Service → contains business logic
+
+Business events happen here:
+
+Money transfer started
+
+Balance updated
+
+Transaction created
+
+Business rule violated
+
+So logging belongs here.
+
+❌ Common Wrong Logging
+log.info("Transfer done " + from + to + amount);
+
+
+Problems:
+
+String concatenation (performance issue)
+
+Hard to search
+
+Poor structure
+
+✅ Correct Logging Pattern
+
+Use parameterized logging:
+
+log.info("Transfer started | from={} | to={} | amount={}", from, to, amount);
+
+
+Slf4j evaluates only if log level is enabled.
+
+🏗 Proper Implementation
+TransferService.java
+@Service
+@Slf4j
+@RequiredArgsConstructor
+public class TransferService {
+
+    private final AccountRepository accountRepository;
+    private final TransactionRepository transactionRepository;
+
+    @Transactional
+    public void transfer(String fromAcc, String toAcc, BigDecimal amount) {
+
+        log.info("Transfer initiated | fromAccount={} | toAccount={} | amount={}",
+                 fromAcc, toAcc, amount);
+
+        Account from = accountRepository.findByAccountNumber(fromAcc)
+                .orElseThrow(() -> {
+                    log.warn("Source account not found | account={}", fromAcc);
+                    return new RuntimeException("Source account not found");
+                });
+
+        Account to = accountRepository.findByAccountNumber(toAcc)
+                .orElseThrow(() -> {
+                    log.warn("Destination account not found | account={}", toAcc);
+                    return new RuntimeException("Destination account not found");
+                });
+
+        if (from.getBalance().compareTo(amount) < 0) {
+            log.error("Insufficient balance | account={} | balance={} | attemptedAmount={}",
+                      fromAcc, from.getBalance(), amount);
+            throw new InsufficientBalanceException("Insufficient balance");
+        }
+
+        from.debit(amount);
+        to.credit(amount);
+
+        log.debug("Balances updated | fromBalance={} | toBalance={}",
+                  from.getBalance(), to.getBalance());
+
+        transactionRepository.save(
+                new Transaction(fromAcc, toAcc, amount)
+        );
+
+        log.info("Transfer completed successfully | fromAccount={} | toAccount={}",
+                 fromAcc, toAcc);
+    }
+}
+
+🎯 Log Levels Usage
+INFO → Business events
+Transfer initiated
+Transfer completed
+
+DEBUG → Internal details
+Updated balances
+SQL execution info
+
+WARN → Recoverable issues
+Account not found
+Retry attempt
+
+ERROR → Failure
+Insufficient balance
+Database failure
+
+🧠 Correlation ID Integration
+
+If you configured MDC correctly, logs automatically contain:
+
+{
+  "correlationId": "abc-123",
+  "message": "Transfer completed successfully"
+}
+
+
+No need to manually add correlationId in log message.
+
+🚨 What NOT to Log (Critical)
+
+Never log:
+
+❌ Passwords
+❌ JWT tokens
+❌ PAN/Aadhaar
+❌ Full card numbers
+❌ Entire request bodies in production
+
+Example of BAD logging:
+
+log.info("Login request: {}", loginRequest);
+
+🏦 Real Banking Logging Example
+
+Good structured business log:
+
+log.info("Trade validated | tradeId={} | clientId={} | status=SUCCESS",
+         tradeId, clientId);
+
+
+This is how trading platforms log.
+
+🧠 Interview Questions
+Why use parameterized logging?
+
+Avoids string creation when level disabled.
+
+Why not log in controller?
+
+Business logic lives in service.
+
+Why not catch and log everywhere?
+
+Double logging problem. Let GlobalExceptionHandler log once.
+
+Should we log before or after DB commit?
+
+Depends:
+
+Before → intent
+
+After → success confirmation
+
+Best practice → log both start and completion.
+
+💎 Advanced Pattern (Optional)
+Measure Execution Time
+long start = System.currentTimeMillis();
+
+try {
+    // business logic
+} finally {
+    long duration = System.currentTimeMillis() - start;
+    log.info("Transfer execution time={}ms", duration);
+}
+
+
+Used in performance monitoring.
+
+🔥 Production Tip
+
+In high traffic systems:
+
+Avoid excessive INFO logs
+
+Use async logging
+
+Use JSON structured logs
+
+🚀 Your Logging Layer Now Is
+
+✔ Structured
+✔ Correlation-aware
+✔ Business-focused
+✔ Secure
+✔ Interview-ready
+
+Audit Logging Using AOP (Clean Architecture)
+
+Now we implement enterprise-grade audit logging without polluting business logic.
+
+In banking/trading systems, audit logging is mandatory for compliance.
+
+Examples of auditable events:
+
+Money transfer
+
+Account creation
+
+Password change
+
+Trade execution
+
+Role modification
+
+🧠 Why Use AOP for Audit?
+
+Without AOP:
+
+log.info("Audit: Money transfer started");
+auditRepository.save(...);
+
+
+Your service becomes messy.
+
+With AOP:
+
+✔ Business logic stays clean
+✔ Audit logic centralized
+✔ Reusable
+✔ Easier to maintain
+✔ Follows clean architecture principles
+
+🏗 Final Architecture
+Controller
+   ↓
+Service (@Audit)
+   ↓
+AuditAspect (AOP intercepts)
+   ↓
+Save AuditLog in DB
+
+1️⃣ Step 1 – Create Audit Annotation
+Audit.java
+package com.bank.audit;
+
+import java.lang.annotation.*;
+
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+public @interface Audit {
+    String action();
+}
+
+
+This marks methods for auditing.
+
+2️⃣ Step 2 – Create Audit Entity
+AuditLog.java
+package com.bank.audit;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class AuditLog {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String action;
+
+    private String username;
+
+    private String correlationId;
+
+    private LocalDateTime timestamp;
+}
+
+3️⃣ Step 3 – Create Repository
+package com.bank.audit;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface AuditRepository extends JpaRepository<AuditLog, Long> {
+}
+
+4️⃣ Step 4 – Create Audit Aspect
+AuditAspect.java
+package com.bank.audit;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.*;
+import org.slf4j.MDC;
+import org.springframework.stereotype.Component;
+
+import java.time.LocalDateTime;
+
+@Aspect
+@Component
+@Slf4j
+@RequiredArgsConstructor
+public class AuditAspect {
+
+    private final AuditRepository auditRepository;
+
+    @Around("@annotation(audit)")
+    public Object auditMethod(ProceedingJoinPoint joinPoint,
+                              Audit audit) throws Throwable {
+
+        String correlationId = MDC.get("correlationId");
+        String username = "SYSTEM"; // later fetch from SecurityContext
+
+        log.info("AUDIT START | action={}", audit.action());
+
+        Object result = null;
+
+        try {
+            result = joinPoint.proceed();
+
+            auditRepository.save(
+                    AuditLog.builder()
+                            .action(audit.action())
+                            .username(username)
+                            .correlationId(correlationId)
+                            .timestamp(LocalDateTime.now())
+                            .build()
+            );
+
+            log.info("AUDIT SUCCESS | action={}", audit.action());
+
+        } catch (Exception ex) {
+
+            auditRepository.save(
+                    AuditLog.builder()
+                            .action(audit.action() + "_FAILED")
+                            .username(username)
+                            .correlationId(correlationId)
+                            .timestamp(LocalDateTime.now())
+                            .build()
+            );
+
+            log.error("AUDIT FAILED | action={} | error={}",
+                      audit.action(), ex.getMessage());
+
+            throw ex;
+        }
+
+        return result;
+    }
+}
+
+5️⃣ Step 5 – Use in Service
+TransferService.java
+@Audit(action = "MONEY_TRANSFER")
+@Transactional
+public void transfer(String from, String to, BigDecimal amount) {
+    // business logic
+}
+
+
+No audit code inside service.
+
+Clean and professional.
+
+🧠 What Happens Internally?
+
+When method is called:
+
+Spring creates proxy
+Proxy calls → AuditAspect
+Aspect wraps method execution
+Audit saved before/after execution
+
+This is how Spring AOP works.
+
+🎯 Logging vs Audit (Important)
+Logging	Audit
+Technical info	Business action
+Can be disabled	Must be stored
+Temporary	Permanent record
+Used for debugging	Used for compliance
+🧠 Interview Deep Questions
+Q: Why use @Around instead of @Before?
+
+Because:
+
+We want success + failure logging
+
+We need access to result
+
+We need try/catch
+
+Q: What happens if audit save fails?
+
+In production:
+
+Use separate transaction (REQUIRES_NEW)
+
+Or async event
+
+Avoid blocking main transaction
+
+🔥 Advanced: Use Separate Transaction for Audit
+@Transactional(propagation = Propagation.REQUIRES_NEW)
+public void saveAudit(AuditLog log) {
+    auditRepository.save(log);
+}
+
+
+Prevents rollback of main transaction affecting audit.
+
+💎 Real Banking Example
+
+User transfers ₹10,000.
+
+Audit table:
+
+id	action	username	correlationId	timestamp
+1	MONEY_TRANSFER	Dileep	abc-123	2026-02-22
+
+Compliance team can review anytime.
+
+🚀 You Now Have
+
+✔ Clean service layer
+✔ Centralized audit
+✔ Correlation tracking
+✔ Production-grade architecture
+✔ Interview-ready design
+
+Audit Entity (Production-Grade Design)
+
+The Audit Entity represents permanent business audit records stored in the database.
+
+In banking/trading systems, this table is:
+
+Never deleted
+
+Used for compliance
+
+Used in investigations
+
+Often write-heavy
+
+🧠 What Should an Audit Entity Contain?
+
+Minimum required fields:
+
+✔ id
+✔ action (business event)
+✔ username
+✔ correlationId
+✔ timestamp
+✔ status (SUCCESS / FAILED)
+
+Advanced (recommended):
+
+✔ entityType
+✔ entityId
+✔ requestPayload (optional)
+✔ responseStatus
+✔ ipAddress
+
+🏗 Clean & Scalable Audit Entity
+AuditLog.java
+package com.bank.audit;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "audit_logs",
+       indexes = {
+           @Index(name = "idx_correlation", columnList = "correlationId"),
+           @Index(name = "idx_timestamp", columnList = "timestamp"),
+           @Index(name = "idx_username", columnList = "username")
+       })
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class AuditLog {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    // Business action (TRANSFER, ACCOUNT_CREATE, etc.)
+    @Column(nullable = false, length = 100)
+    private String action;
+
+    // SUCCESS / FAILED
+    @Column(nullable = false, length = 20)
+    private String status;
+
+    // Logged-in user
+    @Column(length = 100)
+    private String username;
+
+    // Correlation ID for tracing
+    @Column(length = 100)
+    private String correlationId;
+
+    // Which entity is affected (optional but powerful)
+    @Column(length = 100)
+    private String entityType;
+
+    @Column(length = 100)
+    private String entityId;
+
+    // Optional: request payload (be careful with sensitive data)
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String requestPayload;
+
+    private LocalDateTime timestamp;
+}
+
+🧠 Why Add Indexes?
+
+Audit tables grow very fast.
+
+You will frequently query:
+
+By correlationId
+
+By username
+
+By date range
+
+Without indexes → slow queries in production.
+
+🎯 Sample DB Record
+id	action	status	username	correlationId	timestamp
+1	MONEY_TRANSFER	SUCCESS	dileep	abc-123	2026-02-22
+🏦 Real Banking Example
+
+When ₹10,000 transfer happens:
+
+{
+  "action": "MONEY_TRANSFER",
+  "status": "SUCCESS",
+  "username": "dileep",
+  "correlationId": "xyz-789",
+  "entityType": "ACCOUNT",
+  "entityId": "ACC123",
+  "timestamp": "2026-02-22T12:10:00"
+}
+
+
+Compliance team can search anytime.
+
+🚨 What NOT to Store
+
+❌ Password
+❌ JWT token
+❌ Full card number
+❌ Aadhaar
+❌ Sensitive request bodies
+
+If storing payload:
+
+Mask sensitive data
+
+Or store minimal fields
+
+🔥 Advanced Improvement (Recommended)
+
+Instead of String status, use Enum.
+
+public enum AuditStatus {
+    SUCCESS,
+    FAILED
+}
+
+
+Then in entity:
+
+@Enumerated(EnumType.STRING)
+private AuditStatus status;
+
+
+More type-safe.
+
+💎 Production Considerations
+
+Large systems:
+
+Move audit logs to separate database
+
+Or publish audit event to Kafka
+
+Or store in data warehouse
+
+Or archive monthly
+
+Audit tables can reach millions of records.
+
+🧠 Interview Questions
+Why not delete audit records?
+
+Compliance requirements.
+
+Why separate audit DB?
+
+Prevent performance impact on main transactions.
+
+Why use REQUIRES_NEW for audit?
+
+Audit should persist even if main transaction rolls back.
+
+🚀 You Now Have
+
+✔ Indexed audit entity
+✔ Compliance-ready design
+✔ Scalable structure
+✔ Interview-ready explanation

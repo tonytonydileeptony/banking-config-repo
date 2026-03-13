@@ -1,0 +1,175 @@
+🎯 Day 2 Objective
+
+Understand how a real backend project starts and why the structure matters, not just how to run Spring Boot.
+
+By end of Day 2, you should know:
+
+How a backend project is organized
+
+What Spring Boot gives you out of the box
+
+How a request flows inside the application
+
+1️⃣ Why We Start With Project Setup
+
+In real companies:
+
+Bad setup = pain for years
+
+Good setup = easy scaling, refactoring, microservices split
+
+👉 Architecture starts at Day 2, not later.
+
+2️⃣ What Is Spring Boot (Conceptually)
+
+Spring Boot is:
+
+A framework to build production-ready applications fast
+
+Opinionated → sensible defaults
+
+Removes boilerplate configuration
+
+What Spring Boot Handles for Us
+
+Server setup (Tomcat)
+
+Dependency management
+
+Auto-configuration
+
+Application startup lifecycle
+
+3️⃣ Why Maven Is Used
+Maven Solves:
+
+Dependency management
+
+Build lifecycle
+
+Version consistency
+
+Important Files
+pom.xml  → dependencies + plugins
+
+
+Key idea:
+
+Maven ensures everyone builds the app the same way.
+
+4️⃣ Project Structure (VERY IMPORTANT)
+com.bank
+ ├── BankingApplication.java
+ ├── controller
+ ├── service
+ ├── repository
+ ├── model
+ └── config
+
+Why This Structure?
+Layer	Responsibility
+controller	Handles HTTP requests
+service	Business logic
+repository	DB access
+model	Entities / DTOs
+config	Security, configs
+
+👉 Separation of concerns
+👉 Easy to split into microservices later
+
+5️⃣ Entry Point: BankingApplication.java
+@SpringBootApplication
+public class BankingApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(BankingApplication.class, args);
+    }
+}
+
+What @SpringBootApplication Does
+
+It combines:
+
+@Configuration
+
+@EnableAutoConfiguration
+
+@ComponentScan
+
+👉 Spring scans and wires everything automatically.
+
+6️⃣ What Is a REST Controller
+Purpose
+
+Exposes APIs to the outside world
+
+Converts HTTP → Java method
+
+Example:
+
+@RestController
+@RequestMapping("/health")
+public class HealthController {
+
+    @GetMapping
+    public String health() {
+        return "Banking system is up";
+    }
+}
+
+Key Annotations
+
+@RestController → REST API
+
+@RequestMapping → base path
+
+@GetMapping → HTTP GET
+
+7️⃣ Request Flow (Mental Model)
+Client
+ → HTTP Request
+ → Controller
+ → Service
+ → (Repository)
+ → Response
+
+
+For Day 2:
+
+Only Controller → Response
+
+No DB yet
+
+8️⃣ Why Health API Matters
+
+Health API is used for:
+
+Load balancers
+
+Kubernetes health checks
+
+Monitoring
+
+👉 Every production app has it
+
+9️⃣ Git Basics (Day 2 Level)
+Why Git Early?
+
+Track progress
+
+Roll back safely
+
+Industry standard
+
+Basic commands:
+
+git add .
+git commit -m "Day 2: Base Spring Boot setup"
+git push
+
+🧠 Day 2 Self-Check Questions
+
+You should be able to answer:
+1️⃣ Why do we separate controller and service?
+2️⃣ What does Spring Boot auto-configure?
+3️⃣ Why is project structure important early?
+4️⃣ Why every app needs a health endpoint?

@@ -1,0 +1,1007 @@
+🧠 What Is Domain Modeling? (0–20 mins)
+🔹 Simple Definition (No Jargon)
+
+Domain modeling = understanding the business problem and representing it as objects, rules, and relationships in software.
+
+In other words:
+
+“Before writing code, understand what exists in the business world and how it behaves.”
+
+🔹 What Is the “Domain” Here?
+
+The domain is:
+
+Digital Banking
+
+So domain concepts are things like:
+
+User
+
+Account
+
+Transaction
+
+Balance
+
+Transfer
+
+Notification
+
+These exist even if no software existed.
+
+🔹 What Domain Modeling Is NOT
+
+❌ Not writing controllers
+❌ Not choosing Kafka vs REST
+❌ Not database optimization
+❌ Not UI design
+
+Those come after the domain is clear.
+
+🔹 Why Domain Modeling Is Critical
+Without Domain Modeling
+
+God classes (BankService)
+
+Confusing APIs
+
+Business rules scattered everywhere
+
+Painful microservices split later
+
+With Domain Modeling
+
+Clean entities
+
+Clear service boundaries
+
+Business rules in the right place
+
+Easy evolution to microservices
+
+🔹 How to Do Domain Modeling (Practical Steps)
+Step 1: Identify Nouns (Things)
+
+Ask:
+
+“What are the main things in the business?”
+
+For banking:
+
+User
+
+Account
+
+Transaction
+
+Notification
+
+These usually become entities.
+
+Step 2: Identify Verbs (Actions)
+
+Ask:
+
+“What actions happen?”
+
+Examples:
+
+Create account
+
+Transfer money
+
+Credit / debit
+
+Send notification
+
+These usually become service methods.
+
+Step 3: Identify Rules
+
+Ask:
+
+“What must ALWAYS be true?”
+
+Examples:
+
+Balance cannot be negative
+
+Transaction must be atomic
+
+Notifications must not block money transfer
+
+These become business validations.
+
+🔹 Banking Example (Very Important)
+
+Real-world thinking:
+
+A User owns one or more Accounts
+
+Money lives in Account, not User
+
+Transaction moves money between accounts
+
+Notification just informs — it does not change money
+
+👉 This thinking directly shapes your classes.
+
+🔹 How Domain Modeling Helps System Design
+
+Good domain model ⇒
+
+Clear microservice boundaries
+
+Correct data ownership
+
+Better consistency decisions
+
+Example:
+
+Account Service owns balance
+
+Transaction Service orchestrates transfer
+
+Notification Service is async
+
+🔹 Interview-Ready Explanation
+
+“Domain modeling is the process of identifying core business entities, their relationships, and business rules before writing code. It ensures that the system structure mirrors real-world behavior and scales cleanly as the system grows.”
+
+🧪 Quick Self-Check (Answer Mentally)
+
+1️⃣ Why is balance part of Account, not User?
+2️⃣ Why is Transaction a separate entity?
+3️⃣ Why shouldn’t Notification update balance?
+
+Identify Core Entities (Day 3 – Coding Prep)
+
+⏱️ Time: 20–40 mins
+🎯 Goal: Decide what objects must exist in our system before writing code
+
+🔹 What Is a Core Entity?
+
+A core entity is something that:
+
+Has a unique identity
+
+Has state (data)
+
+Lives for a long time
+
+Represents a real business concept
+
+If it disappears, your system stops making sense.
+
+🔹 Rules to Identify Entities (Very Important)
+
+Ask these 3 questions:
+
+1️⃣ Does it have a unique ID?
+2️⃣ Does it change over time?
+3️⃣ Does the business care about it?
+
+If YES to all → Entity ✅
+
+🔹 Our Banking Domain → Core Entities
+
+Let’s do this cleanly and professionally.
+
+1️⃣ User
+
+📌 Represents a bank customer
+
+Why entity?
+
+Has identity (userId)
+
+Exists independently
+
+Owns accounts
+
+Key attributes (conceptual):
+
+userId
+
+name
+
+email
+
+phone
+
+⚠️ Rule:
+
+User does NOT store balance
+
+2️⃣ Account
+
+📌 Where money actually lives
+
+Why entity?
+
+Has accountNumber
+
+Balance changes
+
+Core to banking
+
+Key attributes:
+
+accountId
+
+userId
+
+balance
+
+status (ACTIVE / BLOCKED)
+
+🔥 Critical Rule:
+
+Only Account can modify balance
+
+3️⃣ Transaction
+
+📌 Records money movement
+
+Why entity?
+
+Immutable record
+
+Required for audit
+
+Has lifecycle
+
+Key attributes:
+
+transactionId
+
+fromAccountId
+
+toAccountId
+
+amount
+
+status (INITIATED, SUCCESS, FAILED)
+
+timestamp
+
+⚠️ Rule:
+
+Transactions never update balance directly
+
+4️⃣ Notification
+
+📌 Informational entity
+
+Why entity?
+
+Has delivery state
+
+Stored for retry
+
+Async by nature
+
+Key attributes:
+
+notificationId
+
+userId
+
+message
+
+status (PENDING, SENT, FAILED)
+
+🔹 Entity Relationship (Mental Model)
+User
+ └── Account (1..N)
+        └── Transaction (many)
+User
+ └── Notification (many)
+
+
+Key point:
+
+Account is money owner
+
+Transaction is history
+
+Notification is side-effect
+
+🔹 What We Are NOT Making Entities (On Purpose)
+
+❌ BalanceHistory
+❌ TransferRequest
+❌ PaymentProcessor
+
+These will be:
+
+DTOs
+
+Services
+
+Events
+
+👉 This is how you avoid overengineering.
+
+🔹 Microservices Hint (Don’t Implement Yet)
+
+Later, these entities map naturally to services:
+
+Entity	Future Service
+User	User Service
+Account	Account Service
+Transaction	Transaction Service
+Notification	Notification Service
+
+This is clean system design thinking.
+
+🎯 Interview Gold Line
+
+“Entities represent long-lived business objects with identity and state. In banking systems, account owns balance, transaction ensures auditability, and notifications
+
+Nice, this is where good engineers separate themselves from average ones 👍
+We’re still not coding yet — we’re deciding who is responsible for what.
+
+🧭 Define Entity Responsibilities (Day 3 – Core Design)
+
+⏱️ Time: 40–60 mins
+🎯 Goal: Prevent god-objects and misplaced logic
+
+🔹 What Does “Responsibility” Mean?
+
+Responsibility = what an entity is allowed to do and what it must never do
+
+If responsibilities are unclear:
+
+Business rules leak everywhere
+
+Microservices become messy
+
+Bugs multiply
+
+🔹 Golden Rule
+
+An entity protects its own invariants
+
+(Invariants = rules that must always be true)
+
+1️⃣ User — Responsibilities
+✅ Responsible For
+
+Holding user identity & profile
+
+Owning accounts
+
+Receiving notifications
+
+❌ NOT Responsible For
+
+Balance handling
+
+Money transfer
+
+Transaction processing
+
+📌 Why?
+
+User is a person, not a wallet.
+
+2️⃣ Account — Responsibilities (MOST IMPORTANT)
+✅ Responsible For
+
+Maintaining balance
+
+Credit money
+
+Debit money
+
+Enforcing balance rules
+
+❌ NOT Responsible For
+
+Logging transactions
+
+Sending notifications
+
+Cross-account transfers
+
+🔥 Invariants:
+
+Balance ≥ 0
+
+Account must be ACTIVE
+
+💡 Interview line:
+
+“Account is the aggregate root for monetary consistency.”
+
+3️⃣ Transaction — Responsibilities
+✅ Responsible For
+
+Recording money movement
+
+Tracking transaction status
+
+Ensuring immutability
+
+❌ NOT Responsible For
+
+Updating balance
+
+Retrying transfers
+
+Sending notifications
+
+📌 Rule:
+
+Transactions describe what happened, not what should happen
+
+4️⃣ Notification — Responsibilities
+✅ Responsible For
+
+Message content
+
+Delivery status
+
+Retry tracking
+
+❌ NOT Responsible For
+
+Business decisions
+
+Transaction validation
+
+Blocking core flow
+
+🔥 Rule:
+
+Notifications must be event-driven & async
+
+🔹 Responsibility Boundary Visualization
+Account
+ ├── debit()
+ ├── credit()
+ └── validateBalance()
+
+Transaction
+ └── record()
+
+Notification
+ └── sendAsync()
+
+
+No cross-contamination ❌
+
+🔹 Common Beginner Mistakes (Avoid These)
+
+❌ AccountService updating balance directly
+❌ Transaction updating account balance
+❌ Notification failure rolling back transaction
+❌ User having balance field
+
+These kill scalability.
+
+🔹 How This Helps Microservices
+
+Clear responsibilities ⇒
+
+Account Service owns money
+
+Transaction Service owns audit
+
+Notification Service is async & decoupled
+
+No distributed mess later.
+
+🧪 Self-Check (Critical Thinking)
+
+Answer mentally:
+
+1️⃣ Who validates sufficient balance?
+2️⃣ Who records transfer history?
+3️⃣ Who retries failed notifications?
+
+If answers are:
+
+Account
+
+Transaction
+
+Notification
+
+👉 You’re on the right track ✅
+What Is an Aggregate?
+
+An Aggregate is a cluster of entities that must be consistent together.
+
+One entity is the Aggregate Root
+
+All access goes through the root
+
+Other entities inside cannot be modified directly
+
+🔹 Why Aggregates Matter
+
+Without aggregates:
+
+Multiple services update same data
+
+Distributed transactions everywhere
+
+Race conditions & data corruption
+
+With aggregates:
+
+Strong consistency inside
+
+Loose coupling outside
+
+Safe microservices split
+
+🔹 Banking System Aggregates (Key Decision)
+
+Let’s define exact boundaries.
+
+1️⃣ Account Aggregate (MOST CRITICAL)
+🟢 Aggregate Root: Account
+🧩 Inside Aggregate
+
+Account
+
+Balance (value)
+
+AccountStatus
+
+❌ Outside Aggregate
+
+Transaction
+
+User
+
+Notification
+
+📌 Why?
+
+Balance consistency must be local and atomic
+
+Rules:
+
+Only Account can change balance
+
+Debit + validation happens in one transaction
+
+Account Aggregate
+ ├── accountId
+ ├── balance
+ ├── debit()
+ └── credit()
+
+
+🔥 This is non-negotiable in banking systems.
+
+2️⃣ Transaction Aggregate
+🟢 Aggregate Root: Transaction
+🧩 Inside Aggregate
+
+Transaction
+
+TransactionStatus
+
+Timestamp
+
+❌ Outside Aggregate
+
+Account balance
+
+Notifications
+
+📌 Why?
+
+Transactions are historical records, not consistency holders
+
+Transaction Aggregate
+ ├── transactionId
+ ├── fromAccountId
+ ├── toAccountId
+ └── status
+
+
+Immutable after SUCCESS/FAILED.
+
+3️⃣ User Aggregate
+🟢 Aggregate Root: User
+🧩 Inside Aggregate
+
+User
+
+Profile info
+
+❌ Outside Aggregate
+
+Account balance
+
+Transactions
+
+📌 Why?
+
+User data changes independently of money
+
+4️⃣ Notification Aggregate
+🟢 Aggregate Root: Notification
+🧩 Inside Aggregate
+
+Message
+
+Delivery status
+
+Retry count
+
+📌 Rule:
+
+Failures must NOT affect money flow
+
+🔹 Aggregate Communication Rule (Very Important)
+
+Aggregates do NOT update each other directly
+
+They communicate via:
+
+IDs
+
+Events
+
+Service orchestration
+
+❌ No cross-aggregate DB joins
+❌ No shared transactions
+
+🔹 Example: Money Transfer (Conceptual)
+1. TransactionService creates Transaction (INITIATED)
+2. AccountService debits Account A
+3. AccountService credits Account B
+4. Transaction marked SUCCESS
+5. Notification event published
+
+
+Each aggregate updates independently, safely.
+
+🔹 Interview Power Statement
+
+“Aggregates define transactional boundaries. In banking systems, Account is the aggregate root for balance consistency, while Transaction remains an immutable audit record.”
+
+Say this and interviewers nod 😄
+
+🧪 Self-Check (Important)
+
+Answer mentally:
+
+1️⃣ Can Transaction update Account balance? → ❌
+2️⃣ Can Notification failure rollback debit? → ❌
+3️⃣ Can Account change balance without validation? → ❌
+
+If all ❌ → correct design
+Service Layer vs Domain Layer (Day 3 – Architecture Core)
+
+⏱️ Time: 90–120 mins
+🎯 Goal: Decide where business logic lives and where orchestration lives
+
+🔹 Big Picture (One Line)
+
+Domain Layer = business rules
+Service Layer = use-case orchestration
+
+Never mix them.
+
+🔹 Layered View (Mental Model)
+Controller
+   ↓
+Application / Service Layer
+   ↓
+Domain Layer
+   ↓
+Repository
+
+
+Controllers talk to services, not domain objects directly.
+
+🔹 Domain Layer (THE HEART ❤️)
+What Lives Here?
+
+✅ Entities
+✅ Value Objects
+✅ Business rules
+✅ Invariants
+
+What NEVER Lives Here?
+
+❌ HTTP
+❌ Kafka
+❌ Databases
+❌ Spring annotations
+
+📌 Domain layer must be pure Java.
+
+Example: Account Domain Logic (Conceptual)
+Account.debit(amount)
+
+
+Rules enforced here:
+
+balance >= amount
+
+account is ACTIVE
+
+👉 Domain decides if something is allowed.
+
+🔹 Service Layer (THE BRAIN 🧠)
+What Lives Here?
+
+✅ Use-case flows
+✅ Coordination between aggregates
+✅ Transactions (@Transactional)
+✅ Calling repositories
+✅ Publishing events
+
+What NEVER Lives Here?
+
+❌ Core business rules
+❌ Balance calculations
+
+📌 Service layer decides when and in what order things happen.
+
+Example: TransferMoney Service Flow
+1. Load Account A
+2. Load Account B
+3. Account A → debit
+4. Account B → credit
+5. Save accounts
+6. Create transaction record
+7. Publish notification event
+
+
+Service orchestrates, domain validates.
+
+🔹 Bad Design (Common Mistake ❌)
+if(account.getBalance() >= amount) {
+   account.setBalance(account.getBalance() - amount);
+}
+
+
+Why bad?
+
+Rule outside domain
+
+Duplicate logic risk
+
+Hard to test
+
+🔹 Good Design (Correct ✅)
+account.debit(amount);
+
+
+Domain enforces rules
+
+Service just calls
+
+Clean and testable
+
+🔹 Responsibility Comparison Table
+Layer	Responsibility
+Domain	What is allowed
+Service	When & how
+Controller	Request/response
+Repository	Persistence
+🔹 How This Helps Microservices
+
+Clean separation ⇒
+
+Easier service extraction
+
+Less coupling
+
+Clear ownership
+
+Account Service contains:
+
+Account domain
+
+Account service
+
+Account repository
+
+🔹 Interview Killer Line
+
+“The domain layer encapsulates business rules and invariants, while the service layer orchestrates use cases and coordinates between aggregates.”
+
+💯
+
+🧪 Self-Check
+
+Answer mentally:
+
+1️⃣ Where does balance validation live?
+2️⃣ Where does transaction coordination live?
+3️⃣ Where does HTTP live?
+
+Correct:
+
+Domain
+
+Service
+
+Controller
+Perfect timing 👌
+Now we convert all the thinking into a real, production-ready project structure.
+
+This is exactly what interviewers + senior engineers look for.
+
+📂 Folder Structure for Clean Architecture
+
+(Day 3 – Pre-Coding Final Step)
+
+⏱️ Time: 120–150 mins
+🎯 Goal: Create a structure that works for
+
+Monolith today
+
+Microservices tomorrow
+
+🔹 Core Principle (Memorize This)
+
+Dependencies point inward
+
+Domain → depends on nothing
+
+Service → depends on domain
+
+Controller → depends on service
+
+Never the reverse.
+
+🔹 High-Level Package Structure
+
+We start as a modular monolith (BEST approach).
+
+com.bankapp
+ ├── account
+ ├── transaction
+ ├── user
+ ├── notification
+ └── shared
+
+
+Each module is microservice-ready.
+
+🔹 Inside Each Module (Clean Architecture)
+
+Example: account
+
+account
+ ├── domain
+ │    ├── Account.java
+ │    ├── AccountStatus.java
+ │    └── exception
+ │         └── InsufficientBalanceException.java
+ │
+ ├── application
+ │    └── AccountService.java
+ │
+ ├── infrastructure
+ │    ├── AccountRepository.java
+ │    └── JpaAccountRepository.java
+ │
+ └── web
+      └── AccountController.java
+
+
+🔥 This structure scales cleanly.
+
+🔹 Layer Responsibilities (Clear & Strict)
+📦 domain
+
+Pure Java
+
+Business rules
+
+No Spring annotations
+
+📦 application (Service Layer)
+
+Use cases
+
+@Transactional
+
+Calls domain logic
+
+📦 infrastructure
+
+JPA entities
+
+DB mappings
+
+External integrations
+
+📦 web
+
+REST controllers
+
+DTOs
+
+Request validation
+
+🔹 Why This Is Better Than Common Structures
+
+❌ controller/service/repository only
+→ Grows into chaos
+
+✅ Domain-centric structure
+→ Clear ownership
+→ Easy microservice split
+
+🔹 Transaction Module Example
+transaction
+ ├── domain
+ │    ├── Transaction.java
+ │    └── TransactionStatus.java
+ ├── application
+ │    └── TransactionService.java
+ ├── infrastructure
+ │    └── TransactionRepository.java
+ └── web
+      └── TransactionController.java
+
+🔹 Shared Module (Be Careful)
+shared
+ ├── exception
+ ├── event
+ └── config
+
+
+Rules:
+
+No business logic
+
+Only reusable utilities
+
+Avoid dumping ground ❌
+
+🔹 How This Converts to Microservices Later
+account-service
+transaction-service
+notification-service
+user-service
+
+
+👉 Copy module → standalone service
+👉 Minimal refactor
+👉 Clean boundaries already exist
+
+🔹 Interview-Ready Explanation
+
+“I start with a modular monolith using Clean Architecture. Each domain module is independently deployable later as a microservice, which avoids premature distribution while keeping scalability.”
+
+This is senior-level thinking 💎
+
+📝 Your Task (Do This Now)
+
+1️⃣ Create empty packages for:
+
+account
+
+transaction
+
+user
+
+notification
+
+2️⃣ Inside account, create:
+
+domain
+
+application
+
+infrastructure
+
+web
+
+No code yet ❌

@@ -1,0 +1,909 @@
+Database Design for Banking (30 min)
+
+Goal: Design a safe, scalable, normalized banking database
+
+1️⃣ Core Tables (Production Level)
+1. USERS
+
+Stores customer info.
+
+USERS
+------
+user_id        BIGINT  (PK)
+name           VARCHAR
+email          VARCHAR (UNIQUE)
+kyc_verified   BOOLEAN
+created_at     TIMESTAMP
+
+Why?
+
+One user can have multiple accounts
+
+KYC required for banking compliance
+
+2. ACCOUNTS
+
+Stores bank account details.
+
+ACCOUNTS
+--------
+account_id     BIGINT (PK)
+user_id        BIGINT (FK → USERS.user_id)
+balance        DECIMAL(19,2)
+status         VARCHAR (ACTIVE/BLOCKED)
+created_at     TIMESTAMP
+
+Why?
+
+One user → Many accounts
+
+Balance stored here (single source of truth)
+
+3. TRANSACTIONS
+
+Stores money movement.
+
+TRANSACTIONS
+------------
+txn_id         BIGINT (PK)
+from_account   BIGINT
+to_account     BIGINT
+amount         DECIMAL(19,2)
+type           VARCHAR (DEBIT/CREDIT/TRANSFER)
+status         VARCHAR (SUCCESS/FAILED/PENDING)
+reference_id   VARCHAR
+created_at     TIMESTAMP
+
+Why?
+
+Every money change must be recorded
+
+Needed for audit + rollback + fraud detection
+
+2️⃣ Relationships (Very Important)
+USER 1 ────────< MANY ACCOUNTS
+
+ACCOUNT 1 ─────< MANY TRANSACTIONS
+
+3️⃣ Normalization (Avoid Data Problems)
+❌ Wrong (Denormalized)
+Account table storing user name, email, phone repeatedly
+
+✅ Correct
+
+User info in USERS table
+
+Account only stores user_id
+
+Benefits:
+
+No duplicate data
+
+Easy updates
+
+Less storage
+
+Data consistency
+
+4️⃣ Indexing (Performance Booster 🚀)
+
+Without index → full table scan → slow queries
+
+Add indexes on:
+CREATE INDEX idx_accounts_user ON accounts(user_id);
+
+CREATE INDEX idx_txn_from_account ON transactions(from_account);
+
+CREATE INDEX idx_txn_created_at ON transactions(created_at);
+
+
+Why?
+
+Find accounts by user → fast
+
+Find transactions by account → fast
+
+Statement history → fast
+
+5️⃣ Data Integrity Rules (Must for Banking)
+Constraints
+balance >= 0
+user must exist before account
+account must exist before transaction
+amount > 0
+
+Enforced using:
+
+Foreign Keys
+
+NOT NULL
+
+CHECK constraints
+
+Application validation
+
+6️⃣ Ledger vs Balance (Real Banking Concept)
+Approach 1 — Store Balance (Simple)
+
+Balance column updated on every txn
+
+Fast reads
+
+Used in most systems
+
+Approach 2 — Ledger Only (Advanced)
+
+Never store balance
+
+Calculate from all transactions
+
+Fully auditable but slower
+
+Real banks → Hybrid (Balance + Ledger)
+
+7️⃣ ID Strategy
+
+Always use:
+
+BIGINT AUTO_INCREMENT OR UUID
+
+Avoid:
+
+String manual IDs ❌
+
+Business logic IDs ❌
+
+8️⃣ Production Enhancements (Future)
+
+Partition TRANSACTIONS by date
+
+Archive old data
+
+Add fraud flags
+
+Add audit table
+
+Add soft delete
+
+You will implement some later.
+
+Excellent 👍 — this is core banking + must-know for interviews.
+
+📘 ACID Properties (25 min)
+
+ACID ensures money is always safe and correct in database transactions.
+
+Every bank operation (transfer, withdraw, deposit) MUST follow ACID.
+
+A — Atomicity (All or Nothing)
+Meaning
+
+A transaction must fully complete OR fully fail — no partial updates.
+
+Banking Example
+
+Transfer ₹1000 from A → B
+
+Steps:
+
+Deduct from A
+
+Add to B
+
+Save transaction record
+
+If step 2 fails → step 1 must rollback.
+
+Without Atomicity ❌
+
+A loses money, B does not receive → data corruption
+
+With Atomicity ✅
+
+Either:
+
+Both succeed ✔️
+
+OR nothing happens ✔️
+
+C — Consistency (Data Always Valid)
+Meaning
+
+Database must always stay in a valid state after transaction.
+
+Banking Rules
+
+Balance never negative
+
+Account must exist
+
+Amount must be > 0
+
+Total debit = total credit (in transfer)
+
+Example
+
+Withdraw ₹2000 from account with ₹1000
+
+❌ Should NOT allow → violates consistency
+DB must reject.
+
+I — Isolation (No Interference)
+Meaning
+
+Multiple transactions should not affect each other incorrectly.
+
+Problem (Race Condition)
+
+Balance = ₹1000
+
+Thread 1 withdraw ₹800 → new = ₹200
+Thread 2 withdraw ₹500 → new = -₹300 ❌
+
+Isolation prevents this.
+Isolation Levels
+Level	Behavior
+READ UNCOMMITTED	Dirty reads allowed ❌
+READ COMMITTED	Only committed data
+REPEATABLE READ	Same row stable
+SERIALIZABLE	Fully safe (slow but strongest)
+
+Banking usually uses:
+👉 REPEATABLE READ or SERIALIZABLE
+
+D — Durability (Never Lost)
+Meaning
+
+Once transaction is committed → data is permanently saved.
+
+Even if:
+
+Server crashes
+
+Power failure
+
+Restart happens
+
+Data must remain.
+
+Achieved using:
+
+WAL (Write Ahead Log)
+
+Disk persistence
+
+DB recovery
+
+🧠 Real Banking Example (Putting All Together)
+
+Transfer ₹5000 A → B
+
+Property	What Happens
+Atomicity	Debit + Credit both succeed OR rollback
+Consistency	Balance never negative
+Isolation	No double withdrawal
+Durability	Once success → permanent
+🔥 How Spring Boot Supports ACID
+
+Using:
+
+@Transactional
+public void transferMoney(...) {
+   debit();
+   credit();
+}
+
+
+Spring ensures:
+
+Atomicity → rollback on exception
+
+Consistency → DB constraints
+
+Isolation → DB level
+
+Durability → DB commit
+
+⚠️ Common Mistakes (Interview Trap)
+
+❌ Not using @Transactional
+❌ Updating balance without locking
+❌ Ignoring rollback
+❌ Manual commit logic
+
+🎯 After This You Must Know
+
+You should clearly answer:
+
+What is ACID?
+
+Why Atomicity is critical in banking?
+
+What happens without Isolation?
+
+Why Durability matters?
+
+How Spring ensures ACID?
+
+Reply NEXT → I will teach:
+
+Transactions in Spring Boot (@Transactional) — Deep Dive 🔥
+Transactions in Spring Boot (Deep Dive)
+1️⃣ What is a Database Transaction?
+
+A transaction = group of DB operations executed as one unit.
+
+Either:
+
+All succeed ✔️
+
+OR all rollback ❌
+
+Banking Example — Money Transfer
+
+Transfer ₹1000 from A → B
+
+Steps:
+
+Deduct from A
+
+Add to B
+
+Insert transaction record
+
+If step 2 fails → step 1 must rollback.
+
+Without transaction → money loss ❌
+With transaction → safe ✔️
+
+2️⃣ Spring Boot Support — @Transactional
+
+Spring manages DB transactions automatically.
+
+@Transactional
+public void transferMoney(Long from, Long to, BigDecimal amount) {
+    debit(from, amount);
+    credit(to, amount);
+}
+
+What Spring Does Internally
+
+Opens DB transaction
+
+Executes all queries
+
+If success → COMMIT
+
+If exception → ROLLBACK
+
+3️⃣ Rollback Behavior
+Auto Rollback Happens When:
+
+RuntimeException occurs
+
+Error occurs
+
+@Transactional
+public void transfer(...) {
+   debit();
+   if(true) throw new RuntimeException("Fail");
+   credit();
+}
+
+
+Result → debit rolled back ✔️
+
+Checked Exception Case (Important)
+
+By default → NO rollback
+
+@Transactional
+public void transfer() throws Exception {
+   debit();
+   throw new Exception("Fail");
+}
+
+Fix
+@Transactional(rollbackFor = Exception.class)
+
+4️⃣ Transaction Propagation
+
+Controls how transactions behave when calling another method.
+
+REQUIRED (Default)
+
+Join existing OR create new.
+
+@Transactional
+public void A() {
+   B();  // same transaction
+}
+
+REQUIRES_NEW
+
+Always create new transaction.
+
+@Transactional(propagation = Propagation.REQUIRES_NEW)
+
+
+Used for:
+
+Audit logs
+
+Independent save
+
+SUPPORTS / MANDATORY / NEVER
+
+Less used — learn later.
+
+5️⃣ Isolation Level (Concurrency Control)
+@Transactional(isolation = Isolation.SERIALIZABLE)
+
+Level	Safety	Speed
+READ_COMMITTED	Medium	Fast
+REPEATABLE_READ	High	Medium
+SERIALIZABLE	Highest	Slow
+
+Banking → REPEATABLE_READ / SERIALIZABLE
+
+6️⃣ Read Only Transactions (Performance)
+@Transactional(readOnly = true)
+
+
+Use for:
+
+Fetch queries
+
+Reports
+
+Statements
+
+Improves performance.
+
+7️⃣ Common Mistakes ⚠️
+❌ Calling transactional method inside same class
+
+Spring AOP won’t trigger.
+
+this.transfer();  ❌
+
+
+Must be called via Spring Bean.
+
+❌ Missing @Transactional in transfer logic
+
+→ Causes partial updates
+
+❌ Long-running transactions
+
+→ DB locks, slow system
+
+8️⃣ Real Banking Flow
+Transfer Service
+ ├── Debit Account
+ ├── Credit Account
+ ├── Save Transaction
+ └── Commit
+
+
+If ANY fails → rollback everything ✔️
+
+Concurrency & Race Conditions (20 min)
+1️⃣ What is Concurrency?
+
+When multiple users/threads access the same data at the same time.
+
+Example:
+
+2 users withdraw money simultaneously
+
+1000 users transfer money at once
+
+2️⃣ What is a Race Condition?
+
+When final result depends on execution order of threads → causes wrong data.
+
+Banking Example (Classic)
+
+Initial Balance = ₹1000
+
+Two withdrawals happen at same time:
+
+Thread-1 → withdraw ₹800
+Thread-2 → withdraw ₹500
+
+Without Lock (Problem)
+Thread-1 reads balance = 1000
+Thread-2 reads balance = 1000
+
+Thread-1 updates → 200
+Thread-2 updates → -300 ❌
+
+
+💥 Balance becomes NEGATIVE → data corruption
+
+3️⃣ Where Race Conditions Occur in Banking?
+
+Withdraw
+
+Transfer
+
+Deposit + Withdraw at same time
+
+Updating same account
+
+Updating same row concurrently
+
+4️⃣ Solutions to Prevent Race Conditions
+Solution 1 — Pessimistic Lock (DB Lock)
+
+Lock row until transaction completes.
+
+@Lock(LockModeType.PESSIMISTIC_WRITE)
+Account findById(Long id);
+
+
+DB prevents other threads from modifying row.
+
+✔ Safe
+❌ Slower (waiting)
+
+Used in:
+👉 Money transfer, withdraw
+
+Solution 2 — Optimistic Lock (Versioning)
+
+Uses @Version field.
+
+@Version
+private Long version;
+
+
+If another thread updates same row → exception thrown → retry.
+
+✔ Faster
+✔ Good for high traffic
+❌ Needs retry logic
+
+Solution 3 — SERIALIZABLE Isolation (Strongest)
+@Transactional(isolation = Isolation.SERIALIZABLE)
+
+
+Prevents concurrent anomalies but slow.
+
+Solution 4 — Database Constraint
+
+Prevent negative balance.
+
+CHECK (balance >= 0)
+
+
+Even if bug happens → DB blocks invalid update.
+
+5️⃣ Real Banking Strategy (Used in Production)
+
+Banks use combination:
+
+Transaction (@Transactional)
+
+Pessimistic Lock (for money ops)
+
+Optimistic Lock (for scale)
+
+Retry mechanism
+
+DB constraints
+
+Audit logs
+
+You will implement this later 🔥
+
+6️⃣ Example — Safe Withdraw Logic
+Start Transaction
+Lock Account Row
+Check Balance
+If balance >= amount → deduct
+Else → reject
+Commit
+Unlock
+
+7️⃣ Interview Questions From This Topic
+
+You must answer:
+
+What is race condition?
+
+How negative balance happens?
+
+Difference between pessimistic vs optimistic lock?
+
+Which lock is used in banking?
+
+Why SERIALIZABLE is safest?
+
+How to handle concurrent withdrawals?
+📘 Monolith DB vs Microservices DB (15 min)
+1️⃣ Monolith Database
+Definition
+
+Single application → One shared database
+
+[Monolith App]
+     │
+     ▼
+   ONE DATABASE
+
+
+All modules share same DB:
+
+User
+
+Account
+
+Transaction
+
+Payments
+
+Notifications
+
+Advantages ✅
+
+Simple to build
+
+Easy joins across tables
+
+Strong ACID transactions
+
+Easy debugging
+
+No network calls
+
+Disadvantages ❌
+
+Hard to scale
+
+Single DB = bottleneck
+
+One failure affects all
+
+Hard to migrate to microservices
+
+Tight coupling between modules
+
+2️⃣ Microservices Database
+Definition
+
+Each service has its own database
+
+User Service → User DB
+Account Service → Account DB
+Transaction Service → Transaction DB
+Notification Service → Notification DB
+
+
+Services communicate via:
+
+REST API
+
+Kafka / Events
+
+gRPC
+
+Advantages ✅
+
+Independent scaling
+
+Fault isolation
+
+Loose coupling
+
+Technology flexibility
+
+Easier deployments
+
+Disadvantages ❌
+
+No cross-service joins
+
+Distributed transactions complex
+
+Data duplication sometimes
+
+Network latency
+
+Hard debugging
+
+3️⃣ Key Difference (Important)
+Feature	Monolith	Microservices
+Database	One shared	Per service
+Transaction	Easy (ACID)	Hard (Distributed)
+Scaling	Limited	Independent
+Failure	Whole app	One service
+Deployment	Single	Multiple
+Complexity	Low	High
+4️⃣ How Banking Systems Use This
+Early Stage (Monolith)
+
+Single DB
+
+Simple transfers
+
+Fast development
+
+Production Scale (Microservices)
+
+Account Service DB
+
+Transaction Service DB
+
+Payment Service DB
+
+Fraud Service DB
+
+Event-driven (Kafka)
+
+5️⃣ Big Challenge — Distributed Transaction
+
+Transfer money across services:
+
+Account Service → Debit
+Transaction Service → Record
+
+If one fails → how to rollback?
+
+Solutions:
+
+Saga Pattern (You will learn later)
+
+Event-driven rollback
+
+Compensation transactions
+
+6️⃣ When To Use What?
+Use Monolith When:
+
+Small system
+
+Early stage
+
+Simple logic
+
+Strong ACID needed
+
+Use Microservices When:
+
+Large scale
+
+Independent teams
+
+High traffic
+
+Cloud deployment
+
+🎯 What You Must Understand
+
+You should clearly answer:
+
+Why microservices need separate DB?
+
+Why distributed transaction is hard?
+
+When to choose monolith?
+
+Real banking architecture evolution
+
+Pros/cons of each approach
+Excellent 👍 — last concept of Day 5 Theory.
+This is very important for distributed systems + microservices interviews.
+
+📘 CAP Theorem (Distributed Systems Core)
+
+CAP explains trade-offs in distributed databases/systems.
+
+You can guarantee ONLY 2 out of 3:
+
+C → Consistency
+A → Availability
+P → Partition Tolerance
+
+1️⃣ Consistency (C)
+
+All nodes return same, latest data.
+
+Example:
+
+Balance updated → every server shows updated balance immediately.
+
+Banking requires strong consistency for money safety.
+
+2️⃣ Availability (A)
+
+System always responds — even if some nodes fail.
+
+Example:
+
+Server crash happens → still system responds (maybe stale data).
+
+High availability systems:
+
+Social media
+
+Shopping apps
+
+Search engines
+
+3️⃣ Partition Tolerance (P)
+
+System continues working even when network breaks between nodes.
+
+Example:
+
+Microservices cannot talk due to network issue
+
+DB cluster node disconnected
+
+Still system runs
+
+In distributed systems → Partition always possible → so P is mandatory.
+
+4️⃣ Why Only 2 of 3?
+
+When network partition happens:
+
+If you choose Consistency → must reject requests → Availability lost
+
+If you choose Availability → may return stale data → Consistency lost
+
+So you choose:
+
+CP OR AP (not all 3)
+
+5️⃣ Real Systems Choice
+System Type	Choice	Reason
+Banking	CP	Correct money > availability
+Payment	CP	No wrong balance allowed
+Social Media	AP	Availability > perfect consistency
+DNS	AP	Must respond always
+6️⃣ Banking Example
+
+Account balance = ₹1000
+
+Network partition occurs between DB nodes.
+
+If CP:
+
+System blocks withdrawal until sync → safe ✔️
+
+If AP:
+
+Allows withdrawal on stale node → double spend ❌
+
+Banking must choose CP
+
+7️⃣ CAP in Microservices
+
+Microservices are distributed → CAP applies.
+
+Design decisions:
+
+Strong consistency for money
+
+Eventual consistency for notifications
+
+Retry & compensation for failures
+
+You will implement later (Saga + Kafka).
+
+🎯 What You Must Know
+
+You should answer clearly:
+
+What is CAP theorem?
+
+Why P is mandatory?
+
+Difference between CP vs AP?
+
+Why banking chooses CP?
+
+Real-world system examples

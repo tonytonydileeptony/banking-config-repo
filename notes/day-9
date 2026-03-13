@@ -1,0 +1,969 @@
+Day-9 Topics
+1️⃣ What is Concurrency Problem?
+
+When multiple requests update same account at same time.
+
+Example:
+
+Balance = 1000
+
+Thread-1 withdraw 800
+Thread-2 withdraw 500 (same time)
+
+Both read balance = 1000 ❌
+Final balance = -300 💥
+
+
+This is called Race Condition.
+
+2️⃣ Real Banking Problems
+
+Without locking:
+
+❌ Double withdrawal
+
+❌ Negative balance
+
+❌ Lost update
+
+❌ Inconsistent balance
+
+Banks MUST prevent this.
+
+3️⃣ Locking Types (Very Important)
+A. Optimistic Locking (High performance)
+
+Assumes conflict is rare.
+
+Uses @Version column.
+
+If two updates happen → one fails → retry.
+
+Used in:
+
+Wallet
+
+Payments
+
+High-scale banking
+
+B. Pessimistic Locking (Bank-grade safety)
+
+Locks row in DB (SELECT ... FOR UPDATE)
+
+Other transactions must WAIT.
+
+Used in:
+
+Core banking
+
+Money transfer
+
+Ledger updates
+
+4️⃣ Optimistic Locking — Implementation
+Step 1 — Add Version column
+@Entity
+public class AccountEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long accountId;
+
+    private Double balance;
+
+    @Version
+    private Long version;
+}
+
+Step 2 — Transfer Logic
+
+If two threads update same account:
+
+Thread-1 → success
+Thread-2 → OptimisticLockException
+
+
+Catch → retry.
+
+Retry Example
+for (int i = 0; i < 3; i++) {
+    try {
+        transferInternal();
+        break;
+    } catch (OptimisticLockException e) {
+        Thread.sleep(200);
+    }
+}
+
+5️⃣ Pessimistic Locking — Implementation
+Repository
+@Lock(LockModeType.PESSIMISTIC_WRITE)
+@Query("SELECT a FROM AccountEntity a WHERE a.accountId = :id")
+AccountEntity lockAccount(Long id);
+
+Usage in Transfer
+@Transactional
+public void transfer(Long fromId, Long toId, Double amount) {
+
+    AccountEntity from = accountRepo.lockAccount(fromId);
+    AccountEntity to = accountRepo.lockAccount(toId);
+
+    if (from.getBalance() < amount) {
+        throw new RuntimeException("Insufficient balance");
+    }
+
+    from.setBalance(from.getBalance() - amount);
+    to.setBalance(to.getBalance() + amount);
+
+    accountRepo.save(from);
+    accountRepo.save(to);
+}
+
+
+Now:
+
+Only one transaction can update account at a time
+
+No double withdrawal
+
+No negative balance
+
+6️⃣ Isolation Levels (Short)
+Level	Prevents
+READ_COMMITTED	Dirty read
+REPEATABLE_READ	Lost update
+SERIALIZABLE	Full safety (slow)
+
+Banking often uses:
+
+REPEATABLE_READ or SERIALIZABLE
+
+7️⃣ Deadlock (Important)
+
+When:
+
+Thread-1 locks Account-A → waiting for B
+Thread-2 locks Account-B → waiting for A
+
+
+System stuck 💥
+
+Solution
+
+Always lock in same order
+
+Retry on deadlock
+
+Use timeout
+
+8️⃣ Real Banking Safe Transfer Flow
+1. Lock accounts
+2. Check balance
+3. Debit
+4. Credit
+5. Commit
+6. Retry if conflict
+
+9️⃣ Interview Answers
+
+Q: How to prevent double withdrawal?
+→ Use Pessimistic Lock OR Optimistic Lock + Retry.
+
+Q: Optimistic vs Pessimistic?
+
+Optimistic	Pessimistic
+Faster	Safer
+Retry needed	No retry usually
+Used in high scale	Used in core banking
+Coding Practice (Do Today)
+
+Implement:
+
+Add @Version in AccountEntity
+
+Implement Optimistic locking retry
+
+Add Pessimistic lock query
+
+Simulate 2 concurrent transfers (optional)
+
+1️⃣ How Optimistic Locking Works
+
+Each row has version column
+
+When updating → version must match
+
+If another transaction updated first → OptimisticLockException
+
+You retry safely
+
+2️⃣ Update Account Entity
+@Entity
+@Table(name = "accounts")
+public class AccountEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long accountId;
+
+    private Double balance;
+
+    private String name;
+
+    @Version   // 🔴 Optimistic Lock Column
+    private Long version;
+
+    // getters & setters
+}
+
+3️⃣ Normal Transfer (Without Retry — basic)
+@Transactional
+public void transfer(Long fromId, Long toId, Double amount) {
+
+    AccountEntity from = accountRepo.findById(fromId)
+            .orElseThrow(() -> new RuntimeException("From not found"));
+
+    AccountEntity to = accountRepo.findById(toId)
+            .orElseThrow(() -> new RuntimeException("To not found"));
+
+    if (from.getBalance() < amount) {
+        throw new RuntimeException("Insufficient balance");
+    }
+
+    from.setBalance(from.getBalance() - amount);
+    to.setBalance(to.getBalance() + amount);
+
+    accountRepo.save(from);
+    accountRepo.save(to);
+}
+
+
+If 2 threads run → one will fail with:
+
+OptimisticLockException
+
+4️⃣ Add Retry (Production Pattern)
+public void safeTransfer(Long fromId, Long toId, Double amount) {
+
+    int retries = 3;
+
+    while (retries > 0) {
+        try {
+            transferWithNewTx(fromId, toId, amount);
+            return;
+        } catch (ObjectOptimisticLockingFailureException ex) {
+            retries--;
+            try { Thread.sleep(200); } catch (InterruptedException ignored) {}
+        }
+    }
+
+    throw new RuntimeException("Transfer failed after retries");
+}
+
+5️⃣ Important — Use NEW Transaction for Retry
+@Transactional(propagation = Propagation.REQUIRES_NEW)
+public void transferWithNewTx(Long fromId, Long toId, Double amount) {
+
+    AccountEntity from = accountRepo.findById(fromId)
+            .orElseThrow(() -> new RuntimeException("From not found"));
+
+    AccountEntity to = accountRepo.findById(toId)
+            .orElseThrow(() -> new RuntimeException("To not found"));
+
+    if (from.getBalance() < amount) {
+        throw new RuntimeException("Insufficient balance");
+    }
+
+    from.setBalance(from.getBalance() - amount);
+    to.setBalance(to.getBalance() + amount);
+
+    accountRepo.save(from);
+    accountRepo.save(to);
+}
+
+6️⃣ What Happens Internally
+
+Initial:
+
+Account A → balance=1000, version=1
+
+
+Thread-1 updates → version becomes 2
+Thread-2 still has version 1 → ❌ FAIL → retry → fetch new version → success.
+
+No wrong balance ✅
+
+7️⃣ When to Use Optimistic Locking
+
+Use when:
+
+Conflicts are rare
+
+High concurrency
+
+Performance important
+
+Wallet / Payment / Fintech
+
+8️⃣ Common Interview Questions
+
+Q: What does @Version do?
+→ Adds version column → prevents lost update → throws OptimisticLockException.
+
+Q: Why retry needed?
+→ Because one transaction fails when version mismatch.
+
+Q: Optimistic vs Pessimistic?
+
+Optimistic	Pessimistic
+No DB lock	DB row locked
+Faster	Safer
+Retry needed	Usually no retry
+High scale	Core banking
+9️⃣ Test Scenario
+
+Run 2 concurrent withdrawals:
+
+Without @Version → Wrong balance ❌
+With @Version → One fails → retry → Correct balance ✅
+
+🔒 Pessimistic Locking (FOR UPDATE)
+
+Goal: Prevent other transactions from reading/modifying the same row until your transaction finishes.
+Used when conflicts are likely and you must guarantee no concurrent modification.
+
+🧠 How it works
+
+When you fetch a row using SELECT ... FOR UPDATE:
+
+DB locks that row immediately
+
+Other transactions trying to:
+
+UPDATE → will wait
+
+SELECT ... FOR UPDATE → will wait
+
+Normal SELECT → depends on isolation level (usually allowed, but no write)
+
+Lock released only after COMMIT / ROLLBACK
+
+📌 SQL Example
+START TRANSACTION;
+
+SELECT * FROM account WHERE id = 1 FOR UPDATE;
+
+-- Now row is locked
+UPDATE account SET balance = balance - 500 WHERE id = 1;
+
+COMMIT;
+
+☕ Spring Boot / JPA Implementation
+1️⃣ Entity
+@Entity
+public class Account {
+
+    @Id
+    private Long id;
+
+    private double balance;
+}
+
+2️⃣ Repository (PESSIMISTIC_WRITE)
+public interface AccountRepository extends JpaRepository<Account, Long> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM Account a WHERE a.id = :id")
+    Account findByIdForUpdate(@Param("id") Long id);
+}
+
+
+This internally executes SELECT ... FOR UPDATE
+
+3️⃣ Service (Transactional)
+@Service
+public class AccountService {
+
+    @Autowired
+    private AccountRepository repo;
+
+    @Transactional
+    public void withdraw(Long id, double amount) {
+
+        Account acc = repo.findByIdForUpdate(id); // Row locked
+
+        if (acc.getBalance() < amount) {
+            throw new RuntimeException("Insufficient balance");
+        }
+
+        acc.setBalance(acc.getBalance() - amount);
+
+        repo.save(acc); // Update happens while lock held
+    }
+}
+
+🧪 What happens in concurrency?
+Transaction 1	Transaction 2
+Locks row (FOR UPDATE)	Tries to lock same row
+Updating...	Waits ⏳
+Commit	Lock released
+—	Now proceeds
+⚖️ Optimistic vs Pessimistic
+Feature	Optimistic (@Version)	Pessimistic (FOR UPDATE)
+Lock timing	At commit	Immediately
+Conflict handling	Retry on failure	Prevent conflict
+Performance	Faster	Slower (blocking)
+Use case	Rare conflicts	Frequent conflicts
+Deadlock risk	No	Yes ⚠️
+⚠️ Risks
+
+Deadlocks possible
+
+Threads may wait long → slow performance
+
+Use only when data must be strictly protected
+
+🧩 Real-world Use Cases
+
+Bank balance debit/credit
+
+Inventory deduction (last item problem)
+
+Ticket booking seat lock
+
+Payment processing
+Let’s implement Double Withdrawal Simulation step-by-step using Spring Boot + JPA.
+
+Goal: Prevent two parallel withdrawals from taking money twice from same account.
+
+Double Withdrawal Simulation
+1. Problem
+
+Two requests come at the same time:
+
+Thread-1 → Withdraw 700
+Thread-2 → Withdraw 700
+Balance = 1000
+
+
+Without locking → Final balance becomes -400 ❌ (wrong)
+With locking → Only one succeeds ✅
+
+2. Entity (Account)
+@Entity
+public class Account {
+
+    @Id
+    private Long id;
+
+    private Double balance;
+
+    @Version   // For optimistic locking (optional here)
+    private Integer version;
+
+    // getters & setters
+}
+
+3. Repository (Pessimistic Lock)
+@Repository
+public interface AccountRepository extends JpaRepository<Account, Long> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM Account a WHERE a.id = :id")
+    Account findByIdForUpdate(@Param("id") Long id);
+}
+
+
+This generates SQL:
+
+SELECT * FROM account WHERE id = ? FOR UPDATE;
+
+
+👉 Row gets locked until transaction finishes.
+
+4. Service (Withdrawal Logic)
+@Service
+public class AccountService {
+
+    @Autowired
+    private AccountRepository repo;
+
+    @Transactional
+    public void withdraw(Long accountId, double amount) {
+
+        Account acc = repo.findByIdForUpdate(accountId);
+
+        if (acc.getBalance() < amount) {
+            throw new RuntimeException("Insufficient balance");
+        }
+
+        acc.setBalance(acc.getBalance() - amount);
+
+        repo.save(acc);
+
+        System.out.println(Thread.currentThread().getName() +
+                " SUCCESS → Remaining: " + acc.getBalance());
+    }
+}
+
+5. Double Withdrawal Simulator
+@Component
+public class WithdrawSimulator implements CommandLineRunner {
+
+    @Autowired
+    private AccountService service;
+
+    @Override
+    public void run(String... args) throws Exception {
+
+        Runnable task = () -> {
+            try {
+                service.withdraw(1L, 700);
+            } catch (Exception e) {
+                System.out.println(Thread.currentThread().getName() +
+                        " FAILED → " + e.getMessage());
+            }
+        };
+
+        Thread t1 = new Thread(task, "Thread-1");
+        Thread t2 = new Thread(task, "Thread-2");
+
+        t1.start();
+        t2.start();
+
+        t1.join();
+        t2.join();
+    }
+}
+
+6. Expected Output
+Thread-1 SUCCESS → Remaining: 300
+Thread-2 FAILED → Insufficient balance
+
+
+✔ Only one withdrawal succeeds
+✔ Balance never becomes negative
+✔ No race condition
+
+7. What Happens Internally
+Step	Thread-1	Thread-2
+Lock row	✅	Waiting ⏳
+Withdraw	✅	Still waiting
+Commit	Unlock 🔓	Gets lock
+Check balance	—	Fails ❌
+8. Without Lock (Wrong Behavior)
+
+If you use normal findById():
+
+Thread-1 reads balance = 1000
+Thread-2 reads balance = 1000
+Both withdraw 700
+Final balance = -400 ❌
+
+
+This is called Lost Update Problem.
+
+9. Interview Questions You Can Answer Now
+
+What is double withdrawal problem?
+
+How to prevent race condition in banking?
+
+Difference between optimistic vs pessimistic locking?
+
+What SQL does PESSIMISTIC_WRITE generate?
+
+What happens when two threads access same row?
+
+🧪 Race Condition Test (Concurrent Withdrawal)
+Goal
+
+Simulate 2+ users withdrawing money at same time and verify:
+
+Without locking → ❌ Wrong balance (race condition)
+
+With locking → ✅ Correct balance
+
+1️⃣ Test Setup (Spring Boot + JUnit)
+Account Entity
+@Entity
+public class Account {
+
+    @Id
+    private Long id;
+
+    private double balance;
+
+    @Version
+    private Long version;   // for optimistic locking
+
+    // getters & setters
+}
+
+2️⃣ Withdrawal Service (No Lock — Race Condition)
+@Service
+public class AccountService {
+
+    @Autowired
+    private AccountRepository repo;
+
+    @Transactional
+    public void withdraw(Long id, double amount) {
+        Account acc = repo.findById(id).orElseThrow();
+
+        if (acc.getBalance() < amount) {
+            throw new RuntimeException("Insufficient balance");
+        }
+
+        acc.setBalance(acc.getBalance() - amount);
+
+        // simulate delay (important for race condition)
+        try { Thread.sleep(100); } catch (Exception e) {}
+
+        repo.save(acc);
+    }
+}
+
+3️⃣ Concurrent Test (Race Condition Simulation)
+@SpringBootTest
+public class RaceConditionTest {
+
+    @Autowired
+    private AccountService service;
+
+    @Autowired
+    private AccountRepository repo;
+
+    @Test
+    void testRaceCondition() throws Exception {
+
+        // Initial balance = 1000
+        Account acc = new Account();
+        acc.setId(1L);
+        acc.setBalance(1000);
+        repo.save(acc);
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        Runnable t1 = () -> service.withdraw(1L, 700);
+        Runnable t2 = () -> service.withdraw(1L, 700);
+
+        executor.submit(t1);
+        executor.submit(t2);
+
+        executor.shutdown();
+        executor.awaitTermination(5, TimeUnit.SECONDS);
+
+        Account updated = repo.findById(1L).get();
+
+        System.out.println("Final Balance = " + updated.getBalance());
+    }
+}
+
+❌ Result WITHOUT Locking
+
+Possible outputs:
+
+Final Balance = -400
+Final Balance = 300
+Final Balance = -100
+
+
+👉 This is Race Condition (multiple threads updated same row incorrectly)
+
+4️⃣ Fix Using Pessimistic Lock
+Repository
+@Lock(LockModeType.PESSIMISTIC_WRITE)
+@Query("SELECT a FROM Account a WHERE a.id = :id")
+Account findByIdForUpdate(Long id);
+
+Service
+@Transactional
+public void withdraw(Long id, double amount) {
+    Account acc = repo.findByIdForUpdate(id);
+
+    if (acc.getBalance() < amount) {
+        throw new RuntimeException("Insufficient balance");
+    }
+
+    acc.setBalance(acc.getBalance() - amount);
+
+    try { Thread.sleep(100); } catch (Exception e) {}
+
+    repo.save(acc);
+}
+
+✅ Result WITH Locking
+Final Balance = 300
+
+
+✔ Only one withdrawal succeeds
+✔ Second fails due to insufficient balance
+✔ No data corruption
+
+5️⃣ Fix Using Optimistic Lock
+
+If both threads update same row → one fails with:
+
+OptimisticLockException
+
+
+You retry transaction → Correct balance maintained.
+
+6️⃣ Real Interview Explanation
+
+Race Condition occurs when:
+
+Multiple threads access same resource
+
+No synchronization / locking
+
+Final result depends on execution order
+
+How to prevent:
+
+Pessimistic Lock (DB lock)
+
+Optimistic Lock (@Version)
+
+Atomic DB operations
+
+Distributed locks (Redis, Zookeeper)
+
+7️⃣ What You Learned (Day-9 Complete)
+
+✔ Optimistic Locking
+✔ Pessimistic Locking
+✔ Lost Update Problem
+✔ Double Withdrawal Simulation
+✔ Race Condition Test
+
+
+Here is the Isolation Level Demo (Spring Boot + MySQL) — very important for banking / microservices interviews.
+
+🧠 Isolation Level Demo
+
+Isolation level controls how transactions see each other’s data.
+
+Types (Interview must-know)
+
+READ_UNCOMMITTED → Dirty reads possible
+
+READ_COMMITTED → No dirty read (Default in most DBs)
+
+REPEATABLE_READ → Same row value in same transaction (MySQL default)
+
+SERIALIZABLE → Fully locked, safest, slowest
+
+🧪 Problem to Demonstrate
+
+We simulate Non-Repeatable Read
+
+Tx-1 reads balance = 1000
+
+Tx-2 updates balance = 500 and commits
+
+Tx-1 reads again → sees different value (problem)
+
+🏗 Entity
+@Entity
+@Data
+public class Account {
+
+    @Id
+    private Long id;
+
+    private double balance;
+}
+
+🧾 Repository
+@Repository
+public interface AccountRepository extends JpaRepository<Account, Long> {
+}
+
+⚙️ Service — Isolation Demo
+@Service
+@RequiredArgsConstructor
+public class IsolationService {
+
+    private final AccountRepository repo;
+
+    // Transaction 1
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public void transaction1() throws Exception {
+
+        Account acc1 = repo.findById(1L).orElseThrow();
+        System.out.println("Tx1 First Read: " + acc1.getBalance());
+
+        Thread.sleep(5000); // wait for Tx2 update
+
+        Account acc2 = repo.findById(1L).orElseThrow();
+        System.out.println("Tx1 Second Read: " + acc2.getBalance());
+    }
+
+    // Transaction 2
+    @Transactional
+    public void transaction2() {
+
+        Account acc = repo.findById(1L).orElseThrow();
+        acc.setBalance(500);
+        repo.save(acc);
+
+        System.out.println("Tx2 Updated Balance to 500");
+    }
+}
+
+▶️ Controller
+@RestController
+@RequiredArgsConstructor
+public class TestController {
+
+    private final IsolationService service;
+
+    @GetMapping("/test/isolation")
+    public String testIsolation() throws Exception {
+
+        new Thread(() -> {
+            try {
+                service.transaction1();
+            } catch (Exception e) {}
+        }).start();
+
+        Thread.sleep(1000); // ensure Tx1 starts first
+
+        new Thread(() -> service.transaction2()).start();
+
+        return "Check console logs";
+    }
+}
+
+🔎 Expected Output (READ_COMMITTED)
+Tx1 First Read: 1000
+Tx2 Updated Balance to 500
+Tx1 Second Read: 500   ❌ Non-repeatable read happened
+
+🔒 Change to REPEATABLE_READ
+@Transactional(isolation = Isolation.REPEATABLE_READ)
+
+Output
+Tx1 First Read: 1000
+Tx2 Updated Balance to 500
+Tx1 Second Read: 1000   ✅ No non-repeatable read
+
+🧠 Interview Explanation (Golden Answer)
+
+READ_COMMITTED → prevents dirty read but allows non-repeatable read
+
+REPEATABLE_READ → prevents dirty + non-repeatable read
+
+SERIALIZABLE → prevents phantom read also
+
+Higher isolation = more locks + less performance
+
+Deadlock Retry (Spring Boot / JPA)
+
+When two transactions lock resources in opposite order, deadlock happens. Database aborts one transaction → you must retry automatically.
+
+Goal: If deadlock occurs → retry transaction few times → succeed without user error.
+
+1. Detect Deadlock Exception
+
+Common DB exceptions:
+
+MySQL → DeadlockLoserDataAccessException
+
+JPA → PessimisticLockingFailureException
+
+Hibernate → LockAcquisitionException
+
+Spring translates all into DeadlockLoserDataAccessException (most common).
+
+2. Add Spring Retry Dependency
+
+pom.xml
+
+<dependency>
+    <groupId>org.springframework.retry</groupId>
+    <artifactId>spring-retry</artifactId>
+</dependency>
+
+<dependency>
+    <groupId>org.springframework</groupId>
+    <artifactId>spring-aspects</artifactId>
+</dependency>
+
+3. Enable Retry
+@Configuration
+@EnableRetry
+public class RetryConfig {
+}
+
+4. Retryable Transaction (Deadlock Safe)
+@Service
+public class AccountService {
+
+    @Autowired
+    private AccountRepository repo;
+
+    @Transactional
+    @Retryable(
+        value = DeadlockLoserDataAccessException.class,
+        maxAttempts = 3,
+        backoff = @Backoff(delay = 200)
+    )
+    public void transfer(Long fromId, Long toId, double amount) {
+
+        Account from = repo.findByIdForUpdate(fromId);
+        Account to   = repo.findByIdForUpdate(toId);
+
+        if (from.getBalance() < amount)
+            throw new RuntimeException("Insufficient balance");
+
+        from.setBalance(from.getBalance() - amount);
+        to.setBalance(to.getBalance() + amount);
+
+        repo.save(from);
+        repo.save(to);
+    }
+
+    @Recover
+    public void recover(DeadlockLoserDataAccessException ex,
+                        Long fromId, Long toId, double amount) {
+
+        System.out.println("❌ Deadlock retry failed after 3 attempts");
+        throw ex;
+    }
+}
+
+5. Repository with Pessimistic Lock
+@Repository
+public interface AccountRepository extends JpaRepository<Account, Long> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select a from Account a where a.id = :id")
+    Account findByIdForUpdate(Long id);
+}
+
+6. How Retry Works
+Transaction 1 locks A → wants B
+Transaction 2 locks B → wants A
+→ DEADLOCK
+
+DB kills one transaction
+Spring catches DeadlockLoserDataAccessException
+Retry automatically runs again
+Second attempt succeeds
+
+7. Best Practices
+
+✔ Always retry deadlock (2–3 times enough)
+✔ Keep transaction short
+✔ Access rows in same order (avoid deadlock)
+✔ Use PESSIMISTIC_WRITE only when needed
+✔ Add small backoff delay (100–300 ms)
+
+8. Interview Answer (Short)
+
+Deadlock occurs when two transactions wait for each other's locks. Database aborts one transaction. In Spring Boot, we handle it using @Retryable(DeadlockLoserDataAccessException.class) so the transaction retries automatically and succeeds without user failure.
+

@@ -1,0 +1,541 @@
+✅ Day 16 – Spring Validation + Global Exception Strategy
+
+(Production-Level Implementation for Your Banking App)
+
+Today we make your APIs clean, safe, and enterprise-ready.
+
+Since you worked in GS doing trade validations, this topic is directly aligned with real financial systems — validation is critical before any transaction hits the ledger.
+
+🧠 What We’ll Implement
+
+✔ Request validation (@Valid)
+✔ Custom validation annotations
+✔ Business exceptions
+✔ Global exception handler (@ControllerAdvice)
+✔ Standard error response format
+✔ Production-ready error structure
+
+1️⃣ Add Dependency
+pom.xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-validation</artifactId>
+</dependency>
+
+2️⃣ DTO Validation Example (Transfer Request)
+TransferRequest.java
+import jakarta.validation.constraints.*;
+
+public record TransferRequest(
+
+        @NotBlank(message = "From account is required")
+        String fromAccount,
+
+        @NotBlank(message = "To account is required")
+        String toAccount,
+
+        @NotNull(message = "Amount is required")
+        @Positive(message = "Amount must be greater than 0")
+        BigDecimal amount
+) {}
+
+3️⃣ Enable Validation in Controller
+@PostMapping("/transfer")
+public ResponseEntity<?> transfer(
+        @Valid @RequestBody TransferRequest request) {
+
+    transferService.transfer(
+            request.fromAccount(),
+            request.toAccount(),
+            request.amount());
+
+    return ResponseEntity.ok("Transfer successful");
+}
+
+
+If validation fails → Spring throws MethodArgumentNotValidException.
+
+4️⃣ Custom Business Exception
+InsufficientBalanceException.java
+public class InsufficientBalanceException extends RuntimeException {
+
+    public InsufficientBalanceException(String message) {
+        super(message);
+    }
+}
+
+Usage in Service
+if (fromAccount.getBalance().compareTo(amount) < 0) {
+    throw new InsufficientBalanceException("Insufficient balance");
+}
+
+5️⃣ Standard Error Response (Enterprise Pattern)
+
+Never return random error messages.
+
+ApiError.java
+import java.time.LocalDateTime;
+import java.util.List;
+
+public record ApiError(
+        int status,
+        String message,
+        LocalDateTime timestamp,
+        List<String> errors
+) {}
+
+6️⃣ Global Exception Handler
+GlobalExceptionHandler.java
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    // 1️⃣ Validation errors
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiError> handleValidationException(
+            MethodArgumentNotValidException ex) {
+
+        List<String> errors = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .toList();
+
+        ApiError apiError = new ApiError(
+                HttpStatus.BAD_REQUEST.value(),
+                "Validation failed",
+                LocalDateTime.now(),
+                errors
+        );
+
+        return new ResponseEntity<>(apiError, HttpStatus.BAD_REQUEST);
+    }
+
+    // 2️⃣ Business exception
+    @ExceptionHandler(InsufficientBalanceException.class)
+    public ResponseEntity<ApiError> handleBusinessException(
+            InsufficientBalanceException ex) {
+
+        ApiError apiError = new ApiError(
+                HttpStatus.BAD_REQUEST.value(),
+                ex.getMessage(),
+                LocalDateTime.now(),
+                List.of()
+        );
+
+        return new ResponseEntity<>(apiError, HttpStatus.BAD_REQUEST);
+    }
+
+    // 3️⃣ Generic exception
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiError> handleGenericException(Exception ex) {
+
+        ApiError apiError = new ApiError(
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "Something went wrong",
+                LocalDateTime.now(),
+                List.of(ex.getMessage())
+        );
+
+        return new ResponseEntity<>(apiError,
+                HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+}
+
+7️⃣ Sample Validation Error Response
+Request:
+{
+  "fromAccount": "",
+  "toAccount": "",
+  "amount": -100
+}
+
+Response:
+{
+  "status": 400,
+  "message": "Validation failed",
+  "timestamp": "2026-02-22T10:12:55",
+  "errors": [
+    "fromAccount: From account is required",
+    "toAccount: To account is required",
+    "amount: Amount must be greater than 0"
+  ]
+}
+
+
+🔥 Clean. Structured. Production-grade.
+
+8️⃣ Optional: Custom Validation Annotation
+
+Example: Prevent self-transfer.
+
+NoSelfTransfer.java
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@Constraint(validatedBy = NoSelfTransferValidator.class)
+public @interface NoSelfTransfer {
+
+    String message() default "Cannot transfer to same account";
+
+    Class<?>[] groups() default {};
+
+    Class<? extends Payload>[] payload() default {};
+}
+
+NoSelfTransferValidator.java
+public class NoSelfTransferValidator
+        implements ConstraintValidator<NoSelfTransfer, TransferRequest> {
+
+    @Override
+    public boolean isValid(TransferRequest request,
+                           ConstraintValidatorContext context) {
+
+        return !request.fromAccount()
+                .equals(request.toAccount());
+    }
+}
+
+
+Add annotation to record:
+
+@NoSelfTransfer
+public record TransferRequest(...)
+
+🔥 Interview Gold Topics Covered
+What is @Valid?
+
+Triggers Hibernate Validator before method execution.
+
+Why GlobalExceptionHandler?
+
+Centralized error handling
+
+Clean controller
+
+Consistent API contract
+
+Difference:
+
+@ControllerAdvice → MVC
+
+@RestControllerAdvice → REST + JSON
+
+Why not catch exceptions in controller?
+
+Breaks clean architecture & SRP.
+
+🏗 Production Architecture
+Controller
+   ↓
+Validation Layer
+   ↓
+Service (Business Logic)
+   ↓
+Exception Thrown
+   ↓
+Global Handler
+   ↓
+Standard JSON Response
+
+💎 Real Banking System Note
+
+In trading systems (like your GS validation work):
+
+Input validation
+
+Business rule validation
+
+Risk validation
+
+Compliance validation
+
+Audit logging
+
+All use layered validation + structured error reporting.
+
+
+Here is your Day-16 theory (Goldman Sachs backend interview preparation) — focused on real topics GS commonly asks for Java/Spring backend roles.
+
+Today we’ll cover a high-impact topic that connects directly with what you just worked on:
+
+✅ Caching + Redis + Performance Optimization
+
+This is VERY important because GS systems handle high-frequency financial transactions where latency matters.
+
+📘 DAY 16 — Caching, Redis & Performance Optimization
+1️⃣ Why Caching Exists (Core Theory)
+
+Database calls are expensive:
+
+API → Service → DB → Response
+
+
+Each DB query involves:
+
+Network I/O
+
+Disk reads
+
+Query parsing
+
+Locks & transactions
+
+Caching stores frequently accessed data in memory:
+
+API → Cache (Redis) → Response
+
+
+👉 Memory access is 100–1000x faster than DB.
+
+2️⃣ Types of Caching (Interview Favorite)
+✅ Application Cache
+
+Inside application memory.
+
+Example:
+
+Caffeine
+
+ConcurrentHashMap
+
+✔ Fast
+❌ Lost on restart
+
+✅ Distributed Cache (Most Used in Finance)
+
+Example:
+
+Redis
+
+Hazelcast
+
+✔ Shared across services
+✔ Survives restarts
+✔ Scalable
+
+Goldman Sachs heavily uses distributed caching patterns.
+
+3️⃣ Spring Cache Abstraction
+
+Spring provides annotation-based caching.
+
+Core Annotations
+✅ @Cacheable
+
+Stores result if not present.
+
+@Cacheable("accounts")
+public Account getAccount(Long id)
+
+
+Flow:
+
+Check Cache
+   ↓
+Miss → Call DB → Store → Return
+Hit  → Return directly
+
+✅ @CachePut
+
+Always executes method and updates cache.
+
+@CachePut(value="accounts", key="#account.id")
+
+
+Used after updates.
+
+✅ @CacheEvict
+
+Removes stale cache.
+
+@CacheEvict(value="accounts", key="#id")
+
+
+Used after delete/update.
+
+4️⃣ Cache Key Concept (VERY IMPORTANT)
+
+Cache works like:
+
+key → value
+
+
+Example:
+
+accounts::1 → Account JSON
+
+
+Bad key design causes:
+
+wrong data
+
+cache collision
+
+stale responses
+
+Best practice:
+
+key = "#accountId"
+
+5️⃣ Cache TTL (Time To Live)
+
+Financial systems cannot keep data forever.
+
+Example:
+
+.entryTtl(Duration.ofMinutes(10))
+
+
+Why TTL?
+
+Market data changes
+
+Account balances update
+
+Prevent stale reads
+
+6️⃣ Cache Aside Pattern (GS Favorite)
+
+Most common architecture:
+
+1. Check cache
+2. If miss → DB
+3. Store in cache
+4. Return
+
+
+Spring @Cacheable implements this automatically.
+
+7️⃣ Why NOT Cache JPA Entities
+
+Interview GOLD question.
+
+Problems:
+
+Hibernate lazy proxies
+
+Serialization failures
+
+Large object graphs
+
+Session leakage
+
+✅ Solution:
+
+Entity → DTO → Cache
+
+8️⃣ Serialization in Redis
+
+Redis stores bytes, not Java objects.
+
+Serialization options:
+
+Serializer	Used?	Reason
+JDK	❌	brittle
+String	❌	limited
+JSON	✅	readable & safe
+
+Best practice:
+
+GenericJackson2JsonRedisSerializer
+
+9️⃣ Cache Problems (Real Production)
+Cache Stampede
+
+Many requests hit DB when cache expires simultaneously.
+
+Solution:
+
+stagger TTL
+
+locking
+
+prewarming
+
+Cache Penetration
+
+Requests for non-existing data repeatedly hit DB.
+
+Solution:
+
+cache null briefly.
+
+Cache Invalidation (Hardest Problem)
+
+When DB updates:
+
+DB updated ❌ cache still old
+
+
+Fix:
+
+@CacheEvict after update
+
+⭐ Goldman Sachs Interview Questions (Day 16)
+🔥 Q1 (Very Common)
+
+What is caching and why is Redis used?
+
+✅ Answer:
+
+Caching stores frequently accessed data in memory to reduce database load and latency. Redis is used because it is an in-memory distributed datastore supporting high throughput and low latency, suitable for high-frequency systems.
+
+🔥 Q2
+
+Difference between @Cacheable and @CachePut?
+
+Annotation	Behavior
+Cacheable	Skips execution if cached
+CachePut	Always executes and updates cache
+🔥 Q3
+
+Why shouldn’t we cache JPA entities?
+
+Expected answer:
+
+JPA entities contain lazy-loaded proxies and persistence context references which may fail serialization and cause stale or inconsistent cache states. DTO caching is safer.
+
+🔥 Q4
+
+What happens when cache expires under heavy load?
+
+Answer:
+
+Cache stampede occurs where many requests hit DB simultaneously. Solutions include locking, request coalescing, or staggered TTL.
+
+🔥 Q5 (Advanced GS Question)
+
+How do you maintain cache consistency?
+
+Answer:
+
+Write-through or cache-aside strategy
+
+Evict/update cache after DB modification
+
+Event-driven invalidation (Kafka)
+
+🔥 Q6 (Scenario Based)
+
+Account balance updated but API returns old value. Why?
+
+Expected reasoning:
+
+Cache not evicted
+
+TTL too long
+
+Multiple cache nodes out of sync
+
+🧠 GS Interview Tip
+
+Goldman Sachs cares about:
+
+✅ reasoning
+✅ system behavior under load
+✅ trade-offs
+
+Not just annotations.
+
+Always explain:
+
+Performance vs Consistency

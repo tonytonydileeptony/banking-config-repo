@@ -1,0 +1,828 @@
+Day 18 — MapStruct / DTO Mapping / Clean Code
+🎯 Goal of the Day
+
+Learn how to:
+
+Separate Entity ↔ DTO
+
+Avoid manual mapping boilerplate
+
+Use MapStruct for automatic mapping
+
+Write cleaner, maintainable service code
+
+1️⃣ Why DTO Mapping?
+Why DTO Mapping?
+
+DTO (Data Transfer Object) mapping is used to separate your API layer from your database layer.
+In simple terms:
+
+👉 Entities = Database models
+👉 DTOs = Data sent to/from clients
+
+DTO mapping converts Entity ⇄ DTO safely and cleanly.
+
+1️⃣ Protect Sensitive Data (Security 🔒)
+Entity (Database Model)
+@Entity
+public class User {
+    private Long id;
+    private String name;
+    private String email;
+    private String password;
+}
+
+If you return this directly:
+
+return userRepository.findAll();
+
+❌ API response exposes password.
+
+DTO (Safe API Model)
+public class UserDto {
+    private Long id;
+    private String name;
+    private String email;
+}
+
+✅ Password is hidden.
+
+👉 DTO mapping prevents accidental data leaks.
+
+2️⃣ Avoid Tight Coupling Between DB and API
+
+If your API returns entities directly:
+
+Changing database structure breaks API responses.
+
+Frontend depends on your internal DB design.
+
+Example:
+
+@Column(name = "user_email_address")
+private String email;
+
+Now API changes unintentionally ❌
+
+With DTO:
+
+Database can change
+
+API remains stable ✅
+
+3️⃣ Control What Data is Sent
+
+Sometimes clients need only limited data.
+
+Example
+
+Frontend only needs:
+
+id
+
+name
+
+Not:
+
+address
+
+audit fields
+
+internal flags
+
+DTO lets you send only required fields → faster responses 🚀
+
+4️⃣ Better Performance
+
+Sending full entities may include:
+
+large objects
+
+lazy-loaded relationships
+
+unnecessary data
+
+DTOs:
+
+reduce payload size
+
+improve API speed
+
+reduce serialization overhead
+
+5️⃣ Prevent Lazy Loading Problems
+
+Returning entities directly can cause:
+
+LazyInitializationException
+
+Because relationships load outside transaction.
+
+DTO mapping fetches exactly what you need.
+
+6️⃣ Different API Views
+
+Same entity → multiple DTOs.
+
+Example:
+
+Admin View
+UserAdminDto
+- id
+- name
+- email
+- role
+- status
+Public View
+UserPublicDto
+- id
+- name
+
+✅ One database model
+✅ Multiple API representations
+
+7️⃣ Cleaner Architecture (Industry Standard)
+
+Good backend layering:
+
+Controller → DTO
+Service → Business Logic
+Repository → Entity
+Database
+
+Without DTOs:
+
+Controller → Entity → Database ❌
+
+This mixes responsibilities.
+
+8️⃣ Easier Validation
+
+DTOs are perfect for request validation:
+
+public class CreateUserRequest {
+
+    @NotBlank
+    private String name;
+
+    @Email
+    private String email;
+}
+
+✅ Validate input without touching database model.
+
+9️⃣ Real-World Industry Practice ⭐
+
+Almost all production Spring Boot systems use:
+
+DTO pattern
+
+Mapper layer (MapStruct)
+
+Clean separation
+
+Interviewers often expect this design.
+
+🧠 Simple Analogy
+
+Think of DTO like a delivery package 📦:
+
+Database = Warehouse
+
+Entity = Internal storage format
+
+DTO = Packaged item sent to customer
+
+Customers should never see warehouse internals.
+
+✅ One-Line Summary
+
+DTO mapping exists to improve security, flexibility, performance, and maintain clean architecture by separating database models from API models.
+Problem (Bad Practice ❌)
+
+Returning JPA entities directly from APIs:
+
+@GetMapping("/users")
+public List<User> getUsers() {
+    return userRepository.findAll();
+}
+Issues:
+
+Exposes database structure
+
+Sends unnecessary fields (password, internal IDs)
+
+Tight coupling between DB and API
+
+Hard to maintain
+
+Solution ✅ — DTO (Data Transfer Object)
+
+Entity
+
+@Entity
+public class User {
+    private Long id;
+    private String name;
+    private String email;
+    private String password;
+}
+
+DTO
+
+public class UserDto {
+    private Long id;
+    private String name;
+    private String email;
+}
+
+👉 Password is hidden from API.
+
+2️⃣ Manual Mapping (Old Way 😓)
+
+Before tools like MapStruct, developers converted Entity → DTO manually by writing setter/getter code themselves.
+
+This is called manual mapping.
+
+✅ Example Setup
+Entity
+@Entity
+public class User {
+    private Long id;
+    private String name;
+    private String email;
+    private String password;
+}
+DTO
+public class UserDto {
+    private Long id;
+    private String name;
+    private String email;
+}
+❌ Manual Mapping Example
+public UserDto convertToDto(User user) {
+
+    UserDto dto = new UserDto();
+
+    dto.setId(user.getId());
+    dto.setName(user.getName());
+    dto.setEmail(user.getEmail());
+
+    return dto;
+}
+
+And reverse mapping:
+
+public User convertToEntity(UserDto dto) {
+
+    User user = new User();
+
+    user.setId(dto.getId());
+    user.setName(dto.getName());
+    user.setEmail(dto.getEmail());
+
+    return user;
+}
+😵 Problems with Manual Mapping
+1️⃣ Too Much Boilerplate Code
+
+For every field you write:
+
+dto.setX(entity.getX());
+
+Imagine:
+
+20 fields
+
+50 entities
+
+Hundreds of lines 😓
+
+2️⃣ Easy to Make Mistakes
+
+Common bugs:
+
+dto.setEmail(user.getName()); // wrong mapping ❌
+
+Compiler won't always catch logical errors.
+
+3️⃣ Hard to Maintain
+
+If you add a new field:
+
+private String phoneNumber;
+
+You must update mapping everywhere manually.
+
+Miss one place → bugs.
+
+4️⃣ Code Duplication
+
+Same mapping logic appears in:
+
+services
+
+controllers
+
+utilities
+
+Violates DRY principle (Don't Repeat Yourself).
+
+5️⃣ Pollutes Business Logic
+
+Service should contain business logic:
+
+public List<UserDto> getUsers()
+
+But manual mapping adds clutter:
+
+.map(user -> {
+    UserDto dto = new UserDto();
+    dto.setId(user.getId());
+    dto.setName(user.getName());
+    ...
+})
+
+Harder to read ❌
+
+⚠️ Real Project Pain
+
+In large enterprise apps:
+
+Hundreds of DTOs
+
+Nested objects
+
+Bidirectional mappings
+
+Manual mapping becomes a maintenance nightmare.
+
+✅ Why Modern Projects Avoid It
+
+Instead of manual mapping, developers use:
+
+MapStruct ✅ (compile-time, fastest)
+
+ModelMapper (runtime reflection)
+
+MapStruct generates code automatically like:
+
+dto.setId(user.getId());
+dto.setName(user.getName());
+
+…but you never write it.
+
+🧠 Quick Comparison
+Feature	Manual Mapping	MapStruct
+Code size	Large	Very small
+Performance	Fast	Very fast
+Maintenance	Hard	Easy
+Errors	Common	Compile-time safe
+Clean code	❌	✅
+✅ When Manual Mapping Is Still OK
+
+Small projects or:
+
+DTO has 1–2 fields
+
+One-time conversion
+
+Quick prototype
+
+Otherwise → use mapper tools.
+UserDto dto = new UserDto();
+dto.setId(user.getId());
+dto.setName(user.getName());
+dto.setEmail(user.getEmail());
+
+Problems:
+
+Repetitive
+
+Error-prone
+
+Hard to maintain in large projects
+
+3️⃣ What is MapStruct?
+MapStruct is a Java library that automatically converts (maps) one object into another — usually:
+
+👉 Entity ⇄ DTO
+
+It generates mapping code at compile time, so you don’t have to write manual conversion logic.
+
+🧠 Simple Definition
+
+MapStruct is a compile-time bean mapper that generates type-safe mapping code automatically.
+
+🎯 Why MapStruct Exists
+
+Without MapStruct, developers write manual mapping:
+
+dto.setId(user.getId());
+dto.setName(user.getName());
+dto.setEmail(user.getEmail());
+
+This becomes repetitive and error-prone.
+
+MapStruct removes this boilerplate.
+
+⚙️ How MapStruct Works
+
+You only write an interface:
+
+@Mapper(componentModel = "spring")
+public interface UserMapper {
+
+    UserDto toDto(User user);
+
+    User toEntity(UserDto dto);
+}
+
+✅ That’s it.
+
+During compilation, MapStruct automatically generates:
+
+@Component
+public class UserMapperImpl implements UserMapper {
+
+    @Override
+    public UserDto toDto(User user) {
+        if (user == null) return null;
+
+        UserDto dto = new UserDto();
+        dto.setId(user.getId());
+        dto.setName(user.getName());
+        dto.setEmail(user.getEmail());
+
+        return dto;
+    }
+}
+
+You never write this code manually.
+
+🚀 Key Features
+✅ Compile-Time Code Generation
+
+No reflection
+
+Very fast execution
+
+Errors caught during compilation
+
+✅ Spring Boot Integration
+@Mapper(componentModel = "spring")
+
+Mapper becomes a Spring Bean:
+
+@Autowired
+private UserMapper mapper;
+✅ Automatic Field Mapping
+
+If field names match:
+
+name → name
+email → email
+
+MapStruct maps automatically.
+
+✅ Custom Mapping Support
+@Mapping(source = "email", target = "userEmail")
+UserDto toDto(User user);
+✅ Collection Mapping
+List<UserDto> toDtoList(List<User> users);
+
+No loops needed.
+
+⚡ Why MapStruct Is Popular in Spring Boot
+Feature	MapStruct
+Performance	⭐⭐⭐⭐⭐ (no reflection)
+Type safety	Compile-time checked
+Boilerplate	Very low
+Clean code	Excellent
+Enterprise usage	Very common
+🔥 MapStruct vs ModelMapper
+Feature	MapStruct	ModelMapper
+Mapping time	Compile-time	Runtime
+Performance	Faster	Slower
+Errors detected	Compile-time	Runtime
+Production usage	Preferred	Less common
+🧩 Where It Fits in Architecture
+Controller → DTO
+            ↓
+         Mapper (MapStruct)
+            ↓
+          Entity → Repository → DB
+
+Keeps layers clean and independent.
+
+✅ One-Line Interview Answer ⭐
+
+“MapStruct is a compile-time mapping framework that automatically generates type-safe Entity–DTO conversion code, reducing boilerplate and improving performance.”
+MapStruct = Compile-time Java bean mapper.
+
+✔ Generates mapping code automatically
+✔ No reflection (very fast)
+✔ Type-safe
+✔ Clean service layer
+
+4️⃣ Add MapStruct Dependency
+Maven (pom.xml)
+<dependency>
+    <groupId>org.mapstruct</groupId>
+    <artifactId>mapstruct</artifactId>
+    <version>1.5.5.Final</version>
+</dependency>
+
+<dependency>
+    <groupId>org.mapstruct</groupId>
+    <artifactId>mapstruct-processor</artifactId>
+    <version>1.5.5.Final</version>
+    <scope>provided</scope>
+</dependency>
+
+Also enable annotation processing in IDE ✅
+
+5️⃣ Create Mapper Interface
+@Mapper(componentModel = "spring")
+public interface UserMapper {
+
+    UserDto toDto(User user);
+
+    User toEntity(UserDto dto);
+}
+
+💡 MapStruct automatically generates implementation at build time.
+
+6️⃣ Use Mapper in Service Layer
+@Service
+@RequiredArgsConstructor
+public class UserService {
+
+    private final UserRepository repository;
+    private final UserMapper mapper;
+
+    public List<UserDto> getAllUsers() {
+        return repository.findAll()
+                .stream()
+                .map(mapper::toDto)
+                .toList();
+    }
+}
+
+✅ Clean
+✅ Readable
+✅ No boilerplate
+
+7️⃣ Mapping Lists Automatically
+One powerful feature of MapStruct is that it can automatically map collections like:
+
+List
+
+Set
+
+Collection
+
+You don’t need to write loops manually.
+
+🎯 Problem Without MapStruct
+
+Manual mapping requires looping:
+
+public List<UserDto> convert(List<User> users) {
+    List<UserDto> dtos = new ArrayList<>();
+
+    for (User user : users) {
+        UserDto dto = new UserDto();
+        dto.setId(user.getId());
+        dto.setName(user.getName());
+        dto.setEmail(user.getEmail());
+        dtos.add(dto);
+    }
+
+    return dtos;
+}
+
+❌ Boilerplate code
+❌ Hard to maintain
+
+✅ MapStruct Solution
+Step 1 — Single Object Mapping
+@Mapper(componentModel = "spring")
+public interface UserMapper {
+
+    UserDto toDto(User user);
+}
+Step 2 — Add List Mapping Method
+@Mapper(componentModel = "spring")
+public interface UserMapper {
+
+    UserDto toDto(User user);
+
+    List<UserDto> toDtoList(List<User> users);
+}
+
+✅ That’s all you write.
+
+⚙️ What MapStruct Generates Internally
+
+MapStruct automatically creates something like:
+
+@Override
+public List<UserDto> toDtoList(List<User> users) {
+    if (users == null) {
+        return null;
+    }
+
+    List<UserDto> list = new ArrayList<>(users.size());
+
+    for (User user : users) {
+        list.add(toDto(user));
+    }
+
+    return list;
+}
+
+👉 It reuses your single-object mapper.
+
+✅ Using It in Service Layer
+@Service
+@RequiredArgsConstructor
+public class UserService {
+
+    private final UserRepository repository;
+    private final UserMapper mapper;
+
+    public List<UserDto> getAllUsers() {
+        List<User> users = repository.findAll();
+        return mapper.toDtoList(users);
+    }
+}
+
+Clean and readable ✅
+
+🔁 Reverse Mapping Also Works
+List<User> toEntityList(List<UserDto> dtos);
+
+MapStruct automatically handles it.
+
+🧠 Important Rule
+
+MapStruct can map lists automatically only if it knows how to map the single object.
+
+Meaning:
+
+User → UserDto   ✅ required first
+
+Then:
+
+List<User> → List<UserDto> ✅ automatic
+📦 Supported Collections
+
+MapStruct supports:
+
+List<User> → List<UserDto>
+Set<User> → Set<UserDto>
+Collection<User> → Collection<UserDto>
+
+No extra configuration needed.
+
+⭐ Real Project Benefit
+
+Repository methods usually return lists:
+
+repository.findAll();
+repository.findByStatus("ACTIVE");
+repository.findByRole("ADMIN");
+
+With MapStruct:
+
+No loops
+
+No stream mapping
+
+Cleaner services
+
+✅ Best Practice (Cleaner Style)
+
+You can even skip defining list methods explicitly:
+
+List<UserDto> users = repository.findAll()
+        .stream()
+        .map(mapper::toDto)
+        .toList();
+
+OR (preferred for large projects):
+
+mapper.toDtoList(repository.findAll());
+✅ Interview Tip
+
+If asked:
+
+“Does MapStruct support collection mapping?”
+
+Answer:
+
+“Yes, MapStruct automatically maps collections by applying the single-object mapping method to each element.”
+MapStruct handles collections automatically:
+
+List<UserDto> toDtoList(List<User> users);
+
+No loops required.
+
+8️⃣ Field Name Differences
+
+If names differ:
+
+@Mapper(componentModel = "spring")
+public interface UserMapper {
+
+    @Mapping(source = "email", target = "userEmail")
+    UserDto toDto(User user);
+}
+9️⃣ Ignore Fields
+@Mapping(target = "password", ignore = true)
+User toEntity(UserDto dto);
+🔟 Clean Code Principles (Applied Here)
+✅ Single Responsibility
+
+Entity → DB
+
+DTO → API
+
+Mapper → Conversion
+
+✅ Thin Controllers
+
+❌ Bad:
+
+@GetMapping
+public List<UserDto> getUsers() {
+    List<User> users = repo.findAll();
+    // mapping logic here ❌
+}
+
+✅ Good:
+
+@GetMapping
+public List<UserDto> getUsers() {
+    return service.getAllUsers();
+}
+✅ Service Layer = Business Logic Only
+
+No mapping clutter.
+
+1️⃣1️⃣ Recommended Project Structure
+com.project
+ ├── controller
+ ├── service
+ ├── repository
+ ├── entity
+ ├── dto
+ └── mapper
+1️⃣2️⃣ Real Interview Tip ⭐
+
+Many companies expect:
+
+DTO usage
+
+MapStruct or ModelMapper knowledge
+
+Clean layered architecture
+
+If you say:
+
+“I use MapStruct for compile-time DTO mapping to keep services clean”
+
+✅ Strong backend signal.
+
+🧠 Day-18 Practice Task
+
+Build:
+
+User API
+
+Create User
+
+Get All Users
+
+Return DTO only
+
+Use MapStruct mapper
+
+Bonus:
+
+Add createdAt field only in Entity (not DTO).
+
+✅ Day-18 Outcome Checklist
+
+You should now understand:
+
+✔ Why DTO exists
+
+✔ Entity vs DTO separation
+
+✔ MapStruct basics
+
+✔ Clean architecture layering
+
+✔ Cleaner Spring services

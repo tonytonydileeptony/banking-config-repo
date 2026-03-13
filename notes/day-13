@@ -1,0 +1,231 @@
+1️⃣ Hibernate Performance (Overview)
+
+Hibernate performance mainly depends on how efficiently data is fetched from the database. Most performance problems are caused by:
+
+✅ Too many SQL queries
+✅ Fetching unnecessary data
+✅ Improper relationships mapping
+✅ Wrong fetch strategies
+✅ Missing caching
+
+Common Performance Bottlenecks
+
+N+1 Select Problem (most common)
+
+LazyInitializationException misuse
+
+Fetching large object graphs unintentionally
+
+No batching or pagination
+
+Excessive joins
+
+Hibernate performance tuning is mostly about controlling database access, not Java execution speed.
+
+2️⃣ The N+1 Select Problem (Very Important)
+What is N+1?
+
+The N+1 problem happens when Hibernate executes:
+
+1 query to fetch parent records
+
+N additional queries to fetch child records (one per parent)
+
+Example
+Entity Relationship
+class Department {
+    @OneToMany(mappedBy="department")
+    List<Employee> employees;
+}
+
+What You Expect (Ideal)
+SELECT * FROM department;
+SELECT * FROM employee WHERE department_id IN (...);
+
+
+👉 Only 2 queries
+
+What Actually Happens (N+1)
+SELECT * FROM department;   -- 1 query
+
+SELECT * FROM employee WHERE department_id=1;
+SELECT * FROM employee WHERE department_id=2;
+SELECT * FROM employee WHERE department_id=3;
+...
+
+
+👉 1 + N queries
+
+If N = 100 → 101 queries 😱
+
+Why It Happens
+
+Because Hibernate loads associations lazily by default (especially collections).
+
+When you access:
+
+department.getEmployees()
+
+
+Hibernate fires a new query for each department.
+
+Why It's Dangerous
+
+Massive DB load
+
+Slow APIs
+
+High latency
+
+Hidden until production scale
+
+✅ Solutions to N+1
+1. JOIN FETCH (Best Fix)
+SELECT d FROM Department d
+JOIN FETCH d.employees
+
+
+Hibernate generates:
+
+SELECT * FROM department
+JOIN employee ON ...
+
+
+✔ Single query
+
+2. Entity Graph
+@EntityGraph(attributePaths = "employees")
+List<Department> findAll();
+
+
+Cleaner for Spring Data JPA.
+5. Batch Fetching (Huge Performance Boost)
+
+When loading multiple lazy collections → Hibernate can batch.
+
+application.properties
+spring.jpa.properties.hibernate.default_batch_fetch_size=20
+3. Batch Fetching
+hibernate.default_batch_fetch_size=20
+
+
+Hibernate loads children in groups instead of one-by-one.
+
+4. DTO Projection (Highly Efficient)
+
+Fetch only required fields.
+
+3️⃣ Fetch Types in Hibernate
+
+Fetch type controls WHEN related data is loaded.
+
+There are two main types:
+
+✅ FetchType.LAZY (Default for Collections)
+Meaning:
+
+Data is loaded only when accessed.
+
+@OneToMany(fetch = FetchType.LAZY)
+List<Employee> employees;
+
+Behavior
+Department dept = repo.findById(1);
+
+
+SQL executed:
+
+SELECT * FROM department WHERE id=1;
+
+
+Employees NOT loaded yet.
+
+Only when:
+
+dept.getEmployees();
+
+
+Another query runs.
+
+✅ Advantages
+
+Better performance
+
+Loads only needed data
+
+Memory efficient
+
+❌ Risk
+
+LazyInitializationException if session is closed.
+
+✅ FetchType.EAGER (Default for ManyToOne)
+Meaning:
+
+Data loads immediately with parent.
+
+@ManyToOne(fetch = FetchType.EAGER)
+Department department;
+
+
+Query:
+
+SELECT * FROM employee
+LEFT JOIN department ...
+
+❌ Problems with EAGER
+
+Loads unnecessary data
+
+Creates huge joins
+
+Causes hidden N+1 issues
+
+Hard to control queries
+
+👉 Senior Hibernate rule:
+
+✅ Avoid EAGER unless absolutely required
+
+4️⃣ LAZY vs EAGER (Quick Comparison)
+Feature	LAZY	EAGER
+Load Time	On demand	Immediately
+Performance	Better	Often worse
+Memory Usage	Low	High
+Query Control	High	Low
+Recommended	✅ Yes	❌ Rarely
+5️⃣ Best Practices (Real-World)
+⭐ Golden Rules
+
+Prefer LAZY everywhere.
+
+Use JOIN FETCH when needed.
+
+Never rely on default fetching blindly.
+
+Use DTO projections for APIs.
+
+Monitor SQL logs:
+
+spring.jpa.show-sql=true
+
+
+Measure query count during testing.
+
+6️⃣ How Everything Connects
+Fetch Type → Determines loading strategy
+        ↓
+Lazy Loading → Can cause N+1
+        ↓
+JOIN FETCH / Batch → Fix performance
+
+
+Hibernate performance tuning = controlling fetching behavior.
+
+If you want, I can also explain next-level Hibernate performance topics often asked in interviews:
+
+✅ First-level vs Second-level cache
+✅ Hibernate batching & pagination
+✅ Entity graphs vs fetch join (difference)
+✅ How Spring Data JPA accidentally creates N+1
+✅ Real production optimization strategy

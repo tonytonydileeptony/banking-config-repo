@@ -1,0 +1,802 @@
+Day 15 – Caching with Redis
+1️⃣ What is Caching?
+
+Caching = Store frequently accessed data in fast memory (Redis) instead of DB.
+
+Without Cache:
+App → DB (slow)
+
+With Cache:
+App → Redis (fast) → DB only if cache miss
+
+
+Speed:
+
+DB query → 20–200 ms
+
+Redis → 1–5 ms
+
+2️⃣ Why Redis?
+Redis is used because it is extremely fast, scalable, and reliable for real-time systems (Banking, Trading, Microservices).
+
+Here are the key reasons 👇
+
+⚡ 1. In-Memory Speed (Super Fast)
+
+Redis stores data in RAM, not disk.
+
+Response time: 1–5 ms
+
+Much faster than DB (20–200 ms)
+
+Used for:
+
+Account lookup
+
+Token/session
+
+Frequently accessed data
+
+📈 2. High Throughput (Handles Heavy Load)
+
+Can handle lakhs of requests/sec
+
+Perfect for high-traffic systems (banking, trading, APIs)
+
+🧠 3. Smart Data Structures
+
+Redis supports:
+
+String (simple cache)
+
+Hash (object cache)
+
+List (queue)
+
+Set (unique data)
+
+Sorted Set (leaderboard / ranking)
+
+⏳ 4. TTL / Auto Expiry
+
+You can set expiry time:
+
+SET user:1 Dileep EX 600   (10 min)
+
+
+Used for:
+
+Session timeout
+
+OTP expiry
+
+Token expiration
+
+Temporary cache
+
+🌐 5. Distributed Cache
+
+Works across multiple microservices
+
+Centralized cache (shared)
+
+Supports clustering & replication
+
+🔐 6. Used for Distributed Locking
+
+Prevents issues like:
+
+Double withdrawal
+
+Duplicate payment
+
+Race conditions
+
+🚦 7. Rate Limiting
+
+Control API traffic:
+
+Prevent abuse
+
+Protect login / payment APIs
+
+💾 8. Persistence (Optional)
+
+Redis can also save data to disk:
+
+RDB (snapshot)
+
+AOF (log)
+
+So cache is not always lost
+
+🔄 9. Pub/Sub & Streaming
+
+Used for:
+
+Real-time notifications
+
+Event-driven systems
+
+Chat / live updates
+
+🏦 Real Use in Banking / GS Type Systems
+
+Cache account read
+
+Cache user permissions
+
+Token/session store
+
+Distributed locking for transfers
+
+Rate limiting login/payment
+
+Kafka consumer coordination
+
+Frequently accessed reference data
+
+📊 Redis vs DB
+Feature	Redis	DB
+Speed	🔥 Very Fast	Slow
+Storage	RAM	Disk
+Use	Cache / realtime	Permanent data
+Scaling	Easy	Harder
+TTL	Yes	No
+Interview One-Line Answer
+
+“Redis is used for ultra-fast in-memory caching, distributed locking, rate limiting, and real-time data processing to reduce database load and improve performance.”
+
+If you want → next topic
+
+In-memory (very fast)
+
+Distributed cache
+
+TTL (auto expiry)
+
+Used in Banking, Trading, Microservices
+
+Supports String, JSON, Hash, List, Set
+
+3️⃣ Where Used in Real Systems?
+Where Redis Is Used in Real Systems
+
+Redis is not just cache — it is used in many high-performance, real-time production systems like Banking, Trading, E-commerce, and Microservices.
+
+Here are the most important real-world uses 👇
+
+🏦 1. Banking & Trading Systems
+
+Used for ultra-fast operations
+
+Cache account balance (read-heavy)
+
+Store user session / login token
+
+Prevent double withdrawal (Distributed Lock)
+
+Fraud detection counters
+
+Real-time trading positions cache
+
+API rate limit (login / payment)
+
+👉 Without Redis → DB overload, slow transactions
+
+🌐 2. Microservices Architecture
+
+Redis acts as central shared cache
+
+Share data across services
+
+Cache frequently accessed APIs
+
+Store JWT blacklist
+
+Service-to-service throttling
+
+Idempotency key store (prevent duplicate requests)
+
+🔐 3. Authentication & Security
+
+Store user session
+
+Token storage (JWT / OAuth)
+
+OTP storage with expiry
+
+Login attempt counter (block brute force)
+
+Example:
+
+login:attempt:user123 → 5 (TTL 10 min)
+
+⚡ 4. High-Speed Caching (Most Common Use)
+
+Used when DB calls are expensive.
+
+Examples:
+
+User profile
+
+Account details
+
+Product catalog
+
+Config / reference data
+
+Dashboard data
+
+Cache Pattern
+
+App → Redis → DB (fallback)
+
+🚦 5. API Rate Limiting
+
+Protect system from overload / abuse.
+
+Examples:
+
+Login API → max 5/min
+
+Payment API → max 10/min
+
+Public API → request throttling
+
+🔒 6. Distributed Locking (Critical for Money Systems)
+
+Prevents:
+
+Double withdrawal
+
+Duplicate payment
+
+Race conditions
+
+Used in:
+
+Fund transfer
+
+Order processing
+
+Inventory systems
+
+⏳ 7. Temporary Data with Expiry (TTL)
+
+Redis auto deletes data.
+
+Used for:
+
+OTP (2–5 min)
+
+Email verification
+
+Password reset token
+
+Session timeout
+
+Temporary cache
+
+📊 8. Real-Time Analytics / Counters
+
+Login count
+
+Failed transactions
+
+Fraud detection
+
+Active users
+
+Page views
+
+Redis INCR is atomic & fast
+
+📩 9. Messaging / Event Systems (Pub/Sub)
+
+Used for:
+
+Notifications
+
+Chat apps
+
+Real-time dashboards
+
+Event streaming
+
+🛒 10. E-Commerce Systems
+
+Cart storage
+
+Product cache
+
+Inventory lock
+
+Flash sale protection
+
+Session management
+
+🎯 11. Leaderboards / Ranking
+
+Using Sorted Set
+
+Trading rank
+
+Game rank
+
+Top users
+
+Score systems
+
+🧠 Interview Answer (Short)
+
+“Redis is used in real systems for caching, distributed locking, session/token storage, rate limiting, real-time counters, messaging, and performance optimization to reduce database load and handle high concurrency.”
+Account details cache
+
+User session/token cache
+
+Frequently accessed data
+
+Rate limiting
+
+Distributed locks
+
+Kafka consumer offset cache
+
+API response caching
+
+These 5 core Redis types cover almost all real-world use cases (Banking, Trading, Microservices, Caching).
+
+1️⃣ String (Most Used)
+
+Simple key → value
+
+Max size: 512 MB
+
+Very fast (O(1))
+
+Supports TTL, increment, decrement
+
+Uses in Real Systems
+
+Cache data (account balance, user profile)
+
+OTP / token
+
+Counters (login attempts, transactions)
+
+JWT / session store
+
+Commands
+SET user:1 "Dileep"
+GET user:1
+
+SET otp:1234 5678 EX 120   # expires in 120 sec
+INCR login:attempt:user1
+
+Banking Example
+account:balance:1001 → 25000
+
+2️⃣ Hash (Object Storage)
+
+Like Java Map / JSON object
+
+Store multiple fields inside one key.
+
+Uses
+
+User profile
+
+Account details
+
+Config / metadata
+
+Lightweight object storage
+
+Commands
+HSET user:1 name "Dileep" email "d@test.com" role "USER"
+HGET user:1 name
+HGETALL user:1
+
+Banking Example
+account:1001
+   balance → 25000
+   status  → ACTIVE
+   type    → SAVINGS
+
+3️⃣ List (Queue / Ordered Collection)
+
+Ordered collection (LinkedList)
+Supports push/pop from both ends.
+
+Uses
+
+Message queue
+
+Transaction logs
+
+Notification queue
+
+Background jobs
+
+Commands
+LPUSH txn:queue "TXN1001"
+RPUSH txn:queue "TXN1002"
+LPOP txn:queue
+LRANGE txn:queue 0 -1
+
+Banking Example
+txn:queue → [TXN1001, TXN1002, TXN1003]
+
+4️⃣ Set (Unique Collection)
+
+Unordered, no duplicates
+
+Uses
+
+Unique users
+
+Tags / roles
+
+Fraud detection (unique IP/device)
+
+Feature flags
+
+Membership check
+
+Commands
+SADD loggedin:users user1 user2 user3
+SMEMBERS loggedin:users
+SISMEMBER loggedin:users user1
+
+Banking Example
+active:sessions → {user1, user5, user8}
+
+5️⃣ Sorted Set (ZSet) — Ranking / Score Based
+
+Each element has score + value
+Auto sorted by score.
+
+Uses
+
+Leaderboard / ranking
+
+Trading rank
+
+Top users
+
+Priority queue
+
+Rate limiting window
+
+Commands
+ZADD leaderboard 100 user1
+ZADD leaderboard 200 user2
+ZRANGE leaderboard 0 -1 WITHSCORES
+ZREVRANGE leaderboard 0 2
+
+Banking / Trading Example
+top:traders
+user1 → 98000
+user2 → 87000
+user3 → 65000
+
+🧠 When to Use What
+Data Type	Use Case
+String	Cache, OTP, token, counters
+Hash	Object / user / account
+List	Queue, logs, events
+Set	Unique users, membership
+ZSet	Ranking, leaderboard, rate limit
+⚡ Spring Boot Mapping (Quick Idea)
+Redis	Java Type
+String	String
+Hash	Map / Object
+List	List
+Set	Set
+ZSet	SortedSet / Score
+Interview One-Line Answer
+
+“Redis supports String, Hash, List, Set, and Sorted Set — used for caching, object storage, queues, uniqueness, and ranking respectively.”
+
+4️⃣ Cache Flow
+1️⃣ Read Flow (Cache-Aside / Lazy Loading)
+
+Most common caching pattern
+
+Step-by-step
+Client → Service → Cache (Redis)
+                 ↓ (miss)
+               Database
+                 ↓
+              Save in Cache
+                 ↓
+               Return Response
+
+Explanation
+
+Client requests data (ex: account balance)
+
+Service checks Redis cache
+
+If cache hit → return immediately ⚡
+
+If cache miss → read from DB
+
+Store DB result in Redis
+
+Return to client
+
+Example (Banking)
+GET /account/1001/balance
+
+
+Flow
+
+Check → account:balance:1001 in Redis
+
+If present → return instantly
+
+If not → fetch from MySQL → store in Redis → return
+
+2️⃣ Write Flow (Cache Update Strategy)
+
+When data changes (deposit/withdraw), cache must stay consistent.
+
+Option A — Write Through (Safe)
+Update DB → Update Cache → Return
+
+
+✔ Always consistent
+❌ Slightly slower
+
+Option B — Cache Evict (Most Used)
+Update DB → Delete Cache → Next read reloads cache
+
+
+✔ Simple + reliable
+✔ Used in most real systems
+
+Option C — Write Back (Advanced)
+Update Cache → Async DB update
+
+
+✔ Fast
+❌ Risky (data loss if crash)
+
+Used in high-frequency trading / analytics only.
+
+3️⃣ Spring Boot Cache Flow (Real Implementation)
+Read (Cacheable)
+@Cacheable(value = "accountBalance", key = "#accountId")
+public Double getBalance(Long accountId) {
+    return accountRepository.findBalance(accountId);
+}
+
+
+What happens internally
+
+First call → DB hit → stored in Redis
+
+Next calls → returned from Redis (no DB hit)
+
+Write (Evict Cache)
+@CacheEvict(value = "accountBalance", key = "#accountId")
+public void deposit(Long accountId, Double amount) {
+    accountRepository.deposit(accountId, amount);
+}
+
+
+Why evict?
+
+Because balance changed → old cache invalid ❌
+
+4️⃣ Full Cache Lifecycle
+READ
+ ├─ Cache Hit → Fast response ⚡
+ └─ Cache Miss → DB → Save in Cache → Return
+
+WRITE
+ ├─ Update DB
+ ├─ Evict / Update Cache
+ └─ Next Read → Fresh Cache
+
+5️⃣ Real Banking Example Flow
+First Request
+GET balance
+Redis → MISS
+DB → 25,000
+Redis ← Save
+Return → 25,000
+
+Second Request
+GET balance
+Redis → HIT
+Return → 25,000 ⚡
+
+After Deposit ₹5,000
+Update DB → 30,000
+Evict Cache
+Next Read → DB → Save → Return → 30,000
+
+🧠 Interview Answer (Short)
+
+“Cache-Aside pattern is used where application first checks Redis. On miss, data is fetched from DB and stored in cache. On update, cache is evicted or updated to maintain consistency.”
+Client → Service
+        ↓
+   Check Redis
+   ↓        ↓
+Cache Hit   Cache Miss
+   ↓           ↓
+Return      Query DB → Save to Redis → Return
+
+5️⃣ Spring Boot Redis Setup
+Dependency (Maven)
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-data-redis</artifactId>
+</dependency>
+
+application.yml
+spring:
+  cache:
+    type: redis
+  redis:
+    host: localhost
+    port: 6379
+
+
+Start Redis locally:
+
+docker run -d -p 6379:6379 redis
+
+Enable Cache
+@Configuration
+@EnableCaching
+public class RedisConfig {
+}
+
+6️⃣ Basic Caching Example
+Service
+@Service
+public class AccountService {
+
+    private final AccountRepository repo;
+
+    public AccountService(AccountRepository repo) {
+        this.repo = repo;
+    }
+
+    @Cacheable(value = "accounts", key = "#id")
+    public Account getAccount(Long id) {
+        System.out.println("Fetching from DB...");
+        return repo.findById(id).orElseThrow();
+    }
+}
+
+Behavior
+
+First Call → DB
+Second Call → Redis (No DB hit)
+
+7️⃣ Cache Update (Very Important)
+@CachePut → Update cache
+@CachePut(value = "accounts", key = "#account.id")
+public Account update(Account account) {
+    return repo.save(account);
+}
+
+8️⃣ Cache Evict (Delete Cache)
+@CacheEvict(value = "accounts", key = "#id")
+public void delete(Long id) {
+    repo.deleteById(id);
+}
+
+9️⃣ TTL (Auto Expiry)
+spring:
+  cache:
+    redis:
+      time-to-live: 600000   # 10 minutes
+
+
+Use when:
+
+Account balance
+
+Token/session
+
+Market price cache
+
+🔟 Cache Aside Pattern (Most Used)
+Read:
+Check Cache → If Miss → Load DB → Put Cache
+
+Write:
+Update DB → Evict Cache
+
+
+Spring Cache uses Cache Aside pattern internally.
+
+11️⃣ Redis Template (Manual Control)
+@Autowired
+private RedisTemplate<String, Object> redisTemplate;
+
+public void save() {
+    redisTemplate.opsForValue().set("user:1", "Dileep", 10, TimeUnit.MINUTES);
+}
+
+12️⃣ Common Interview Questions
+Q1: @Cacheable vs @CachePut vs @CacheEvict?
+Annotation	Purpose
+Cacheable	Read from cache / store result
+CachePut	Update cache
+CacheEvict	Remove cache
+Q2: What is Cache Stampede?
+
+Many requests hit DB when cache expires simultaneously.
+
+Solution
+
+Use TTL + random delay
+
+Use distributed lock
+
+Use refresh ahead
+
+Q3: When NOT to cache?
+
+Highly dynamic data (like live balance)
+
+Huge datasets
+
+Sensitive data (password)
+
+Q4: Redis vs In-Memory Cache?
+Redis	In-Memory
+Distributed	Single instance
+Persistent	Not
+Production ready	Dev only
+13️⃣ Production Use in Banking
+
+Cache Account Read (but evict on update)
+
+Cache User Permissions
+
+Cache Token/JWT blacklist
+
+Distributed Lock for transfers
+
+Rate limiting
+
+14️⃣ Common Mistakes
+
+❌ Caching without eviction → stale data
+❌ Caching large objects → memory issue
+❌ No TTL → memory full
+❌ Cache inside transaction (bad)
+
+15️⃣ Advanced (Used in GS / High Scale)
+
+Redis Cluster
+
+Pub/Sub
+
+Distributed Lock (Redisson)
+
+Rate Limiting
+
+Cache + Kafka + Outbox
+
+L2 Cache (Hibernate + Redis)
+
+Practice Task (Important)
+
+Implement in your Banking App:
+
+Cache getAccount(id)
+
+Evict cache on update
+
+TTL = 10 min
+
+Test: DB hit only once

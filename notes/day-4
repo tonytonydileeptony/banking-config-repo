@@ -1,0 +1,1256 @@
+Perfect 👍 — let’s go deep + interview-level clarity on this.
+
+📘 Layered Architecture (Core Concept)
+
+This is the foundation of clean backend design.
+Every professional system (Banking, Payments, Microservices) follows this.
+
+🔷 What is Layered Architecture?
+
+Divide application into separate layers, each with clear responsibility.
+
+Controller → Application/Service → Domain → Repository → Database
+
+
+Each layer talks only to the next layer (no skipping).
+
+1️⃣ Controller Layer (API Layer)
+Purpose
+
+Handles HTTP request & response only
+
+Responsibilities
+
+Accept API request
+
+Validate input (basic)
+
+Call Service layer
+
+Return response
+
+Convert DTO ↔ Domain
+
+What NOT to do ❌
+
+No business logic
+
+No DB access
+
+No transaction logic
+
+Example
+@RestController
+@RequestMapping("/accounts")
+public class AccountController {
+
+    private final AccountService accountService;
+
+    @PostMapping
+    public AccountResponse create(@RequestBody CreateAccountRequest req) {
+        return accountService.createAccount(req);
+    }
+}
+
+
+Controller = Entry point only
+
+2️⃣ Application / Service Layer
+Purpose
+
+Orchestrates use-case / business flow
+
+This is the brain of your application
+
+Responsibilities
+
+Coordinates domain objects
+
+Handles transactions (@Transactional)
+
+Calls repositories
+
+Implements use-case logic
+
+Calls multiple services if needed
+
+Example
+@Service
+public class AccountService {
+
+    @Transactional
+    public Account createAccount(CreateAccountRequest req) {
+
+        User user = userRepository.findById(req.userId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Account account = new Account(user.getId(), req.name());
+        return accountRepository.save(account);
+    }
+}
+
+3️⃣ Domain Layer (Core Business Logic)
+Purpose
+
+Contains pure business rules
+
+This is the most important layer
+
+Responsibilities
+
+Debit / Credit logic
+
+Business validations
+
+State changes
+
+Domain invariants
+
+Example
+public class Account {
+
+    private BigDecimal balance;
+
+    public void debit(BigDecimal amount) {
+        if (balance.compareTo(amount) < 0) {
+            throw new RuntimeException("Insufficient balance");
+        }
+        balance = balance.subtract(amount);
+    }
+
+    public void credit(BigDecimal amount) {
+        balance = balance.add(amount);
+    }
+}
+
+Rules
+
+Domain must NOT depend on:
+
+Spring ❌
+
+Database ❌
+
+HTTP ❌
+
+Framework ❌
+
+Pure Java only ✔️
+
+4️⃣ Repository Layer (Data Access)
+Purpose
+
+Handles database communication
+
+Responsibilities
+
+Save entity
+
+Fetch entity
+
+Query DB
+
+Example
+@Repository
+public interface AccountRepository extends JpaRepository<AccountEntity, String> {
+}
+
+
+No business logic here ❌
+
+5️⃣ Database Layer
+
+Stores:
+
+Users
+
+Accounts
+
+Transactions
+
+Handled by:
+
+Hibernate / JPA
+
+SQL DB
+
+🔁 Request Flow (End-to-End)
+Client → Controller → Service → Domain → Repository → DB
+                                     ↑
+                                  Business logic
+
+🚫 What Happens Without Layered Architecture?
+
+Spaghetti code
+
+Hard to debug
+
+Hard to scale
+
+No separation
+
+Business logic scattered
+
+Not production-grade
+
+🧠 Interview Questions From This
+
+You must answer:
+
+What is layered architecture?
+
+Difference between Service vs Domain?
+
+Why no business logic in Controller?
+
+Why domain must be pure?
+
+What happens if repository has business logic?
+
+🎯 What You Must Understand
+
+Responsibility of each layer
+
+Clean separation
+
+Flow of request
+
+Where to put business logic
+3️⃣ SOLID Principles (Very Important) — 25 min
+
+These are must-know principles for clean, maintainable, scalable code. Every Java/Spring interview will ask this.
+
+S — Single Responsibility Principle (SRP)
+
+One class = One responsibility
+
+❌ Bad:
+
+AccountService handles DB + Validation + Email + Logging
+
+✅ Good:
+
+AccountService → business logic
+
+AccountRepository → DB
+
+NotificationService → Email/SMS
+
+Benefit: Easy testing, easy maintenance
+
+O — Open/Closed Principle (OCP)
+
+Open for extension, Closed for modification
+
+You should add new behavior without changing old code.
+
+Example:
+
+interface InterestCalculator {
+    double calculate(double balance);
+}
+
+
+Add new types:
+
+class SavingsInterest implements InterestCalculator {}
+class CurrentInterest implements InterestCalculator {}
+
+
+No need to modify old code 👍
+
+L — Liskov Substitution Principle (LSP)
+
+Child class should replace parent class without breaking behavior
+
+Example:
+If SavingsAccount extends Account, it should behave like Account — not break logic.
+
+Bad example:
+If withdrawal not allowed in child → violates LSP ❌
+
+I — Interface Segregation Principle (ISP)
+
+Don’t force classes to implement unused methods
+
+❌ Bad:
+
+interface BankOperations {
+    void deposit();
+    void withdraw();
+    void loan();
+}
+
+
+If some class doesn't need loan → problem ❌
+
+✅ Good:
+
+interface Deposit { void deposit(); }
+interface Withdraw { void withdraw(); }
+interface Loan { void loan(); }
+
+D — Dependency Inversion Principle (DIP)
+
+Depend on abstraction, not concrete class
+
+❌ Bad:
+
+class AccountService {
+    private MySQLAccountRepository repo = new MySQLAccountRepository();
+}
+
+
+✅ Good:
+
+class AccountService {
+    private AccountRepository repo;
+}
+
+
+Spring does this using @Autowired / Constructor Injection
+
+4️⃣ DTO vs Entity vs Model — 20 min
+Entity
+
+Maps to DB table
+
+Contains JPA annotations
+
+@Entity
+class AccountEntity { }
+
+DTO (Data Transfer Object)
+
+Used for API request/response
+
+No DB annotations
+
+class AccountRequestDTO {
+   String name;
+   Double balance;
+}
+
+Why separate?
+
+Security (don’t expose DB fields)
+
+Clean architecture
+
+Flexibility
+
+5️⃣ Exception Handling Strategy — 15 min
+
+In real banking apps, never expose raw errors.
+
+Use:
+
+@RestControllerAdvice
+
+Custom Exceptions
+
+Example:
+
+@ResponseStatus(HttpStatus.NOT_FOUND)
+class AccountNotFoundException extends RuntimeException {}
+
+
+Global handler:
+
+@RestControllerAdvice
+class GlobalExceptionHandler {
+
+    @ExceptionHandler(AccountNotFoundException.class)
+    public ResponseEntity<String> handleNotFound() {
+        return ResponseEntity.status(404).body("Account not found");
+    }
+}
+
+6️⃣ Validation in Spring Boot — 10 min
+
+Use:
+
+@Valid
+
+@NotNull
+
+@Min
+
+@NotBlank
+
+Example:
+
+class CreateAccountRequest {
+
+    @NotBlank
+    private String name;
+
+    @Min(0)
+    private Double balance;
+}
+
+
+Controller:
+
+@PostMapping
+public ResponseEntity<?> create(@Valid @RequestBody CreateAccountRequest req) {}
+
+✅ Day 4 Theory Completed
+
+You now understand:
+
+Layered Architecture
+
+Clean Architecture
+
+SOLID Principles ⭐
+
+DTO vs Entity
+
+Exception Handling
+
+Validation
+Monolith Architecture (Our Current Stage) — 15 min
+What is Monolith?
+
+A Monolithic Architecture is when the entire application runs as a single unit (single service, single deployable, single DB).
+
+Right now your banking project = Monolith ✅
+(Account + Transaction + User everything inside one Spring Boot app)
+
+Structure of Monolith
+banking-system
+ ├── controller
+ ├── service
+ ├── repository
+ ├── entity
+ ├── config
+ └── util
+
+
+Everything runs together in one JVM + one database
+
+Example in Your Banking App
+
+Account Module
+
+Transaction Module
+
+User Module
+
+Balance Update
+
+Debit/Credit Logic
+
+All inside Account Application Service → Monolith ✅
+
+Advantages of Monolith
+1. Simple to Build
+
+Easy for beginners
+
+Single project
+
+Less configuration
+
+2. Easy Debugging
+
+One log file
+
+Easy breakpoint debugging
+
+3. Fast Development (initial stage)
+
+No network calls
+
+No service communication
+
+4. Simple Deployment
+java -jar banking.jar
+
+Problems of Monolith (Why Microservices later)
+1. Scaling Problem
+
+If only Account service is heavy, you must scale entire app ❌
+
+2. Code Becomes Huge
+
+After 6–12 months:
+
+Hard to maintain
+
+Hard to understand
+
+Risky changes
+
+3. Deployment Risk
+
+Small change → redeploy full app ❌
+
+4. Technology Lock
+
+Cannot use:
+
+Different DB
+
+Different language
+
+Independent scaling
+
+When Monolith is Good?
+
+Use Monolith when:
+
+Starting new product
+
+Small team
+
+Learning architecture
+
+Building core business logic
+
+MVP stage
+
+👉 Exactly where you are now
+
+Our Plan (Very Important)
+
+We follow Real Industry Path:
+
+Phase 1 → Monolith (Current) ✅
+Phase 2 → Modular Monolith
+Phase 3 → Microservices (Split services)
+Phase 4 → Cloud + Kubernetes
+
+
+We will convert your project step-by-step 🔥
+(You already asked earlier: "how to split monolith to microservices" — we will do that soon.)
+
+Monolith vs Microservices (Quick View)
+Feature	Monolith	Microservices
+Deployment	Single	Multiple
+DB	Single	Multiple
+Scaling	Whole app	Per service
+Complexity	Low	High
+Learning	Easy	Advanced
+Network calls	No	Yes
+Interview Questions
+
+Q1: What is Monolith?
+Single deployable application where all modules run together.
+
+Q2: Why start with Monolith?
+Simple, fast, less complexity.
+
+Q3: Biggest drawback?
+Scaling + maintainability.
+
+Q4: When move to Microservices?
+When system grows, team grows, scaling required.
+
+Done ✅
+
+You now completed:
+
+Layered Architecture
+
+Clean Architecture
+
+SOLID
+
+DTO vs Entity
+
+Exception Handling
+
+Validation
+
+Monolith Architecture ⭐
+Domain-Driven Design (DDD) Basics — 20 min
+1️⃣ What is DDD?
+
+Domain-Driven Design = Designing software based on real business rules.
+
+Focus is business logic first, not database or framework.
+
+Example (Banking):
+
+Account must never go negative ❌
+
+Transfer must be atomic
+
+Only ACTIVE account can transact
+
+Debit + Credit must be consistent
+
+These rules = Domain Logic
+
+2️⃣ Core Concepts of DDD
+1. Domain
+
+The business problem area you are solving.
+
+For you:
+
+Banking System Domain
+
+
+Subdomains:
+
+Account
+
+Transaction
+
+User
+
+Payment
+
+Notification
+
+2. Entity
+
+Object with unique identity + lifecycle
+
+Example:
+
+AccountEntity
+TransactionEntity
+UserEntity
+
+
+Even if balance changes → still same Account (same ID)
+
+3. Value Object
+
+Object without identity (compared by value)
+
+Examples in Banking:
+
+Money
+
+Address
+
+Email
+
+PhoneNumber
+
+public class Money {
+    private BigDecimal amount;
+    private String currency;
+}
+
+
+No ID → only value matters.
+
+4. Aggregate
+
+Group of related objects treated as single unit
+
+Example:
+
+Account Aggregate
+ ├── Account (Root)
+ ├── Transactions
+
+
+Only Aggregate Root can be accessed directly.
+
+5. Aggregate Root
+
+Main controller of the aggregate.
+
+Example:
+
+Account
+
+
+All operations must go through Account:
+
+debit()
+
+credit()
+
+block()
+
+Never directly modify Transaction list from outside ❌
+
+6. Repository
+
+Handles database access for Aggregates
+
+AccountRepository
+TransactionRepository
+
+
+DDD Rule:
+
+Repository works only with Aggregate Roots
+
+7. Domain Service
+
+When logic doesn’t belong to single entity
+
+Example:
+
+Money Transfer between two accounts
+
+Fraud detection
+
+Interest calculation
+
+TransferService
+
+8. Application Service
+
+Orchestrates use cases
+
+Example:
+
+Create Account
+
+Transfer Money
+
+Get Balance
+
+Calls:
+
+Domain entities
+
+Domain services
+
+Repositories
+
+DDD Layer Structure (Your Project)
+account
+ ├── domain
+ │   ├── model (Account, Money)
+ │   ├── service (TransferDomainService)
+ │   └── repository (interface)
+ │
+ ├── application
+ │   └── service (AccountApplicationService)
+ │
+ ├── infrastructure
+ │   └── repository (JPA implementation)
+ │
+ └── presentation
+     └── controller
+
+Example in Your Banking App
+Entity (Domain)
+public void debit(BigDecimal amount) {
+    if (balance.compareTo(amount) < 0)
+        throw new RuntimeException("Insufficient funds");
+
+    this.balance = this.balance.subtract(amount);
+}
+
+
+Business rule inside entity ✅
+
+Domain Service
+public void transfer(Account from, Account to, BigDecimal amount) {
+    from.debit(amount);
+    to.credit(amount);
+}
+
+Application Service
+@Transactional
+public void transfer(Long fromId, Long toId, BigDecimal amount) {
+    Account from = repo.findById(fromId);
+    Account to = repo.findById(toId);
+
+    domainService.transfer(from, to, amount);
+
+    repo.save(from);
+    repo.save(to);
+}
+
+Why DDD is Important?
+
+Clean business logic
+
+Easy to convert → Microservices
+
+Matches real-world model
+
+Better maintainability
+
+Industry best practice
+
+Interview favorite ⭐
+
+Interview Questions
+
+Q1: What is DDD?
+Design approach focusing on business domain and rules.
+
+Q2: Difference Entity vs Value Object?
+Entity → has identity, Value Object → no identity.
+
+Q3: What is Aggregate Root?
+Main entity controlling access to aggregate.
+
+Q4: What is Domain Service?
+Business logic not belonging to one entity.
+
+Q5: Why DDD for Microservices?
+Helps define service boundaries (Bounded Context).
+5️⃣ DTO vs Entity — 10 min
+1️⃣ What is an Entity?
+
+Entity = Database table mapped object (JPA/Hibernate).
+
+Has @Entity
+
+Represents DB structure
+
+Contains business data
+
+Managed by Hibernate
+
+Example:
+
+@Entity
+@Table(name = "accounts")
+public class AccountEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long accountId;
+
+    private String name;
+    private BigDecimal balance;
+    private String status;
+}
+
+
+Entity = DB Model
+
+2️⃣ What is DTO?
+
+DTO = Data Transfer Object (used for API communication).
+
+Used between Controller ⇄ Client
+
+Not mapped to DB
+
+Only contains required fields
+
+No business logic
+
+Example:
+
+public class AccountDTO {
+
+    private Long accountId;
+    private String name;
+    private BigDecimal balance;
+}
+
+
+DTO = API Model
+
+3️⃣ Why NOT expose Entity directly? ❌
+Problem 1 — Security Risk
+
+Entity may contain:
+
+password
+
+internal fields
+
+audit data
+
+DTO hides sensitive data.
+
+Problem 2 — Tight Coupling
+
+If DB changes → API breaks ❌
+DTO protects API contract.
+
+Problem 3 — Lazy Loading Issues
+
+Entities may have relationships:
+
+@OneToMany(fetch = LAZY)
+List<Transaction> transactions;
+
+
+Returning entity → LazyInitializationException
+
+DTO avoids this.
+
+Problem 4 — Over-fetching Data
+
+Entity may contain many fields → API slow ❌
+DTO sends only required data.
+
+4️⃣ DTO vs Entity Comparison
+Feature	Entity	DTO
+DB Mapping	Yes	No
+Used in Repository	Yes	No
+Used in Controller	❌ Avoid	Yes
+Business Logic	Sometimes	No
+Serializable for API	Not recommended	Yes
+Security Safe	No	Yes
+5️⃣ Flow in Spring Boot
+Controller ⇄ DTO ⇄ Service ⇄ Entity ⇄ Repository ⇄ DB
+
+6️⃣ Mapping Example
+Convert Entity → DTO
+public AccountDTO toDTO(AccountEntity entity) {
+    AccountDTO dto = new AccountDTO();
+    dto.setAccountId(entity.getAccountId());
+    dto.setName(entity.getName());
+    dto.setBalance(entity.getBalance());
+    return dto;
+}
+
+Convert DTO → Entity
+public AccountEntity toEntity(AccountDTO dto) {
+    AccountEntity entity = new AccountEntity();
+    entity.setName(dto.getName());
+    entity.setBalance(dto.getBalance());
+    return entity;
+}
+
+7️⃣ Best Practice (Industry)
+
+Use Mapper Class or MapStruct
+
+Example:
+
+@Mapper(componentModel = "spring")
+public interface AccountMapper {
+    AccountDTO toDTO(AccountEntity entity);
+    AccountEntity toEntity(AccountDTO dto);
+}
+
+8️⃣ Interview Questions
+
+Q1: Difference DTO vs Entity?
+Entity → DB object, DTO → API transfer object.
+
+Q2: Why not return Entity from Controller?
+Security, Lazy loading, Coupling, Performance.
+
+Q3: Where DTO is used?
+Controller layer.
+
+Q4: Where Entity is used?
+Repository + Service layer.
+
+Q5: What is Mapper?
+Converts DTO ⇄ Entity.
+
+Done ✅ Day 4 Theory Complete
+
+You now know:
+
+Layered Architecture
+
+Clean Architecture
+
+Monolith Architecture
+
+DDD Basics
+
+DTO vs Entity
+5️⃣ Exception Handling Strategy — 15 min
+1️⃣ Why Exception Handling is Important?
+
+Without proper handling:
+
+App crashes ❌
+
+Users see 500 Internal Server Error ❌
+
+No clear error message ❌
+
+Hard to debug ❌
+
+Good handling gives:
+
+Clean API responses ✔
+
+Proper HTTP status ✔
+
+Debuggable logs ✔
+
+Stable system ✔
+
+2️⃣ Types of Exceptions in Banking App
+Business Exceptions (Expected)
+
+Account not found
+
+Insufficient balance
+
+Account blocked
+
+Invalid amount
+
+Technical Exceptions (Unexpected)
+
+DB connection failure
+
+NullPointerException
+
+Timeout
+
+External API failure
+
+3️⃣ Strategy (Industry Standard)
+
+We use 3-level exception handling
+
+Controller → GlobalExceptionHandler → Response
+Service → Throw Business Exceptions
+Repository → DB Exceptions
+
+4️⃣ Create Custom Exceptions
+AccountNotFoundException
+public class AccountNotFoundException extends RuntimeException {
+    public AccountNotFoundException(String message) {
+        super(message);
+    }
+}
+
+InsufficientBalanceException
+public class InsufficientBalanceException extends RuntimeException {
+    public InsufficientBalanceException(String message) {
+        super(message);
+    }
+}
+
+5️⃣ Throw Exception from Service Layer
+public void debit(Long accountId, BigDecimal amount) {
+
+    AccountEntity account = repository.findById(accountId)
+        .orElseThrow(() -> new AccountNotFoundException("Account not found"));
+
+    if (account.getBalance().compareTo(amount) < 0) {
+        throw new InsufficientBalanceException("Insufficient balance");
+    }
+
+    account.setBalance(account.getBalance().subtract(amount));
+    repository.save(account);
+}
+
+6️⃣ Global Exception Handler (Important)
+
+Create:
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+Handle AccountNotFound
+@ExceptionHandler(AccountNotFoundException.class)
+public ResponseEntity<?> handleAccountNotFound(AccountNotFoundException ex) {
+    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(new ErrorResponse("ACCOUNT_NOT_FOUND", ex.getMessage()));
+}
+
+Handle Insufficient Balance
+@ExceptionHandler(InsufficientBalanceException.class)
+public ResponseEntity<?> handleBalance(InsufficientBalanceException ex) {
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(new ErrorResponse("INSUFFICIENT_BALANCE", ex.getMessage()));
+}
+
+Handle Generic Exception (Fallback)
+@ExceptionHandler(Exception.class)
+public ResponseEntity<?> handleGeneric(Exception ex) {
+    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(new ErrorResponse("INTERNAL_ERROR", ex.getMessage()));
+}
+
+7️⃣ Error Response Model
+public class ErrorResponse {
+
+    private String errorCode;
+    private String message;
+    private LocalDateTime timestamp = LocalDateTime.now();
+
+    public ErrorResponse(String errorCode, String message) {
+        this.errorCode = errorCode;
+        this.message = message;
+    }
+}
+
+8️⃣ Final API Error Output (Example)
+
+If account not found:
+
+{
+  "errorCode": "ACCOUNT_NOT_FOUND",
+  "message": "Account not found",
+  "timestamp": "2026-02-10T16:30:00"
+}
+
+
+Clean ✔ Professional ✔ Production-ready ✔
+
+9️⃣ Best Practices (Industry)
+
+Never expose stacktrace to client ❌
+
+Use custom business exceptions ✔
+
+Use GlobalExceptionHandler ✔
+
+Log errors properly ✔
+
+Return correct HTTP status ✔
+
+Use error codes ✔
+
+🔥 Interview Questions
+
+Q1: Why GlobalExceptionHandler?
+Centralized error handling.
+
+Q2: @ControllerAdvice vs @RestControllerAdvice?
+RestControllerAdvice = JSON response.
+
+Q3: Checked vs Runtime Exception?
+Runtime preferred for business exceptions.
+
+Q4: Where to throw business exception?
+Service layer.
+
+Q5: What is fallback exception handler?
+@ExceptionHandler(Exception.class)
+
+1️⃣ Why Validation is Needed?
+
+Without validation ❌
+
+Invalid data enters DB
+
+Negative amount possible
+
+Empty name saved
+
+System crashes later
+
+With validation ✔
+
+Clean input
+
+Secure API
+
+Prevent bad data
+
+Better error messages
+
+2️⃣ Where Validation Happens?
+
+Controller Layer (on DTO)
+
+Client → Controller (@Valid DTO) → Service → DB
+
+
+We validate DTO, NOT Entity.
+
+3️⃣ Add Dependency (If not added)
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-validation</artifactId>
+</dependency>
+
+4️⃣ Add Validation to DTO
+AccountCreateDTO
+public class AccountCreateDTO {
+
+    @NotBlank(message = "Name is required")
+    private String name;
+
+    @NotNull(message = "Initial balance required")
+    @DecimalMin(value = "0.0", inclusive = false, message = "Balance must be positive")
+    private BigDecimal balance;
+
+    @NotBlank(message = "UserId required")
+    private String userId;
+}
+
+5️⃣ Enable Validation in Controller
+@PostMapping("/accounts")
+public ResponseEntity<?> createAccount(@Valid @RequestBody AccountCreateDTO dto) {
+    return ResponseEntity.ok(service.createAccount(dto));
+}
+
+
+@Valid triggers validation automatically
+
+6️⃣ Handle Validation Errors (Global Exception)
+
+Add this inside GlobalExceptionHandler
+
+@ExceptionHandler(MethodArgumentNotValidException.class)
+public ResponseEntity<?> handleValidation(MethodArgumentNotValidException ex) {
+
+    Map<String, String> errors = new HashMap<>();
+
+    ex.getBindingResult().getFieldErrors().forEach(error ->
+        errors.put(error.getField(), error.getDefaultMessage())
+    );
+
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
+}
+
+7️⃣ Example Invalid Request
+Input
+{
+  "name": "",
+  "balance": -100,
+  "userId": ""
+}
+
+Response
+{
+  "name": "Name is required",
+  "balance": "Balance must be positive",
+  "userId": "UserId required"
+}
+
+
+Clean ✔ User-friendly ✔ Production ✔
+
+8️⃣ Common Validation Annotations
+Annotation	Use
+@NotNull	Cannot be null
+@NotBlank	Cannot be empty
+@Size(min,max)	String length
+@Email	Email format
+@Min / @Max	Numbers
+@DecimalMin	BigDecimal
+@Pattern	Regex
+9️⃣ Best Practices
+
+Validate DTO only ✔
+
+Never validate Entity ❌
+
+Always use @Valid ✔
+
+Return clean error messages ✔
+
+Combine with GlobalExceptionHandler ✔
+
+🔥 Interview Questions
+
+Q1: Where validation happens?
+Controller layer on DTO.
+
+Q2: What triggers validation?
+@Valid
+
+Q3: How to handle validation errors globally?
+MethodArgumentNotValidException
+
+Q4: DTO vs Entity validation?
+DTO only.
+
+Q5: What is JSR-380?
+Bean Validation standard.

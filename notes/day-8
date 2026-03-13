@@ -1,0 +1,1119 @@
+Day 8 — Theory (2.5 hrs)
+1️⃣ Distributed Transactions Problem (30 min)
+
+Why hard in microservices:
+
+Transfer = Debit Service + Credit Service
+
+If debit succeeds & credit fails → 💥 money lost
+
+Single DB transaction not possible across services
+
+Concepts:
+
+2PC (Two Phase Commit) — slow, rarely used
+
+Saga Pattern — industry standard
+
+Choreography (events)
+
+Orchestration (central coordinator)
+
+👉 In banking we use Saga + Compensation
+
+Example:
+
+Debit success
+
+Credit failed → Refund (compensation)
+
+2️⃣ Exactly-Once vs At-Least-Once (20 min)
+Delivery	Meaning	Risk
+At-most-once	may lose	unsafe
+At-least-once	duplicates possible	need idempotency
+Exactly-once	perfect but complex	Kafka transactions
+
+Banking uses:
+👉 At-least-once + Idempotency
+
+3️⃣ Idempotency Deep Dive (Very Important) (25 min)
+
+Prevent double transfer when:
+
+User clicks twice
+
+Network retry
+
+Service retry
+
+Solution:
+
+Unique transactionId
+
+Store in DB
+
+If exists → ignore duplicate
+
+4️⃣ Event-Driven Architecture (EDA) (25 min)
+
+Instead of direct calls:
+
+Transfer Service → Kafka → Notification Service
+                          → Audit Service
+                          → Analytics
+
+
+Benefits:
+
+Loose coupling
+
+Async processing
+
+Scalable
+
+5️⃣ Failure Scenarios in Banking (20 min)
+
+DB crash during transfer
+
+Service crash after debit
+
+Duplicate API calls
+
+Network timeout
+
+Partial commit
+
+Solutions:
+
+Retry + Backoff
+
+Idempotency
+
+Saga
+
+Transaction logs
+
+Outbox pattern
+
+1️⃣ Distributed Transactions Problem (30 min)
+What is a Distributed Transaction?
+
+A single logical transaction that spans multiple services / databases.
+
+Example in Banking:
+
+Transfer ₹1000 from Account A → Account B
+
+
+But in microservices:
+
+Debit happens in Account Service DB
+
+Credit happens in Payment/Transfer Service DB
+
+Two different databases ❗
+One DB transaction cannot cover both.
+
+The Core Problem
+
+What if system crashes in middle?
+
+Scenario
+
+Debit ₹1000 from A ✅
+
+System crashes before credit ❌
+
+Now:
+
+Money removed from A
+
+Not added to B
+
+💥 Data inconsistency (Banking disaster)
+
+This is called Partial Commit Problem.
+
+Why Single DB Transactions Don’t Work
+
+Local DB transaction guarantees ACID only inside ONE database.
+
+But in microservices:
+
+Multiple DBs
+
+Multiple services
+
+Network calls
+
+Async processing
+
+So no global transaction manager.
+
+Classical Solution — 2 Phase Commit (2PC)
+Phase 1 — Prepare
+
+All services ask DB:
+
+“Can you commit?”
+
+Lock resources
+
+If all say YES → go next
+
+Phase 2 — Commit
+
+Coordinator says:
+
+“Commit now”
+
+Problems with 2PC
+
+Very slow
+
+DB locks for long time
+
+Not scalable
+
+If coordinator crashes → system stuck
+
+Rarely used in modern systems
+
+👉 Banks avoid 2PC in microservices.
+
+Modern Solution — Saga Pattern (Industry Standard)
+
+Instead of one big transaction, break into multiple small transactions.
+
+Each step commits independently.
+
+If something fails → Compensation (Undo).
+
+Saga Example — Money Transfer
+Step-by-step
+
+Debit Account A → commit
+
+Credit Account B → commit
+
+If Step 2 fails:
+
+Compensation → Refund A
+
+So system becomes eventually consistent.
+
+Two Types of Saga
+1. Choreography (Event-based)
+
+No central controller.
+
+Transfer Service → Event → Account Service (Debit)
+                  → Event → Payment Service (Credit)
+                  → Event → Notification
+
+
+Services react to events.
+
+Pros:
+
+Loose coupling
+
+Scalable
+
+Cons:
+
+Hard to track flow
+
+2. Orchestration (Central Coordinator)
+
+One service controls flow.
+
+Orchestrator:
+  → Debit Service
+  → Credit Service
+  → If fail → Refund Service
+
+
+Pros:
+
+Easier control
+
+Easier debugging
+
+Cons:
+
+Slight coupling
+
+Banking Reality
+
+Banks usually use:
+
+Saga pattern
+
+Compensation logic
+
+Idempotency
+
+Transaction logs
+
+Retry + Dead-letter queues
+
+Audit trail
+
+Because money must never be lost.
+
+Key Interview Points
+
+If interviewer asks “Distributed transaction problem?”
+
+Say:
+
+In microservices, one transaction spans multiple DBs
+
+Local ACID not enough
+
+2PC exists but slow and blocking
+
+Modern systems use Saga pattern
+
+Compensation ensures rollback
+
+Ensures eventual consistency
+
+Real Failure Cases in Banking
+
+Debit success, credit failed
+
+Service crash mid-transfer
+
+Network timeout
+
+Duplicate API calls
+
+DB partial commit
+
+All solved using:
+
+Saga
+
+Idempotency
+
+Retry
+
+Outbox pattern
+
+Quick Visualization
+User Transfer ₹1000
+
+A: 5000 → 4000  (Debit success)
+B: 2000 → ???   (Credit failed)
+
+Saga Compensation:
+A: 4000 → 5000  (Refund)
+
+
+Consistency restored.
+
+What You Should Remember
+
+Distributed transactions = multi-service commit
+
+Single DB ACID not enough
+
+2PC slow and blocking
+
+Saga = industry solution
+
+Compensation prevents money loss
+
+Used in banking, payments, fintech
+
+2️⃣ Exactly-Once vs At-Least-Once Delivery
+
+This topic is about message / transaction delivery guarantees in distributed systems (Kafka, queues, retries, banking transfers).
+
+Why this matters in Banking
+
+During money transfer systems use:
+
+Retry on failure
+
+Network calls
+
+Async processing (Kafka / Events)
+
+Without proper guarantee:
+
+❌ Money may be lost
+
+❌ Money may be duplicated
+
+❌ Double debit / double credit
+
+So delivery semantics are critical.
+
+3 Types of Delivery Guarantees
+1️⃣ At-Most-Once (Fire & Forget)
+
+Message sent once — no retry
+
+If failure happens → message LOST ❌
+
+Example:
+
+Debit event sent → network failed → credit never happens
+
+
+Result → Money disappears 💥
+
+👉 Not acceptable in banking
+
+2️⃣ At-Least-Once (Retry enabled)
+
+Message will be delivered 1 or more times
+
+If failure → system retries.
+
+Problem → Duplicates possible
+
+Example:
+
+Transfer request sent
+Retry triggered
+Same transfer executed twice → double debit 💥
+
+
+👉 This is what MOST systems use
+👉 Must combine with Idempotency
+
+3️⃣ Exactly-Once (Perfect but complex)
+
+Message delivered ONLY once — no loss, no duplicate
+
+Sounds perfect but:
+
+Hard to implement
+
+Slow
+
+Requires distributed coordination
+
+Kafka transactions needed
+
+Not fully “exact” in real world
+
+👉 Used carefully in fintech, not everywhere.
+
+Banking Reality
+
+Most banking systems use:
+
+At-Least-Once + Idempotency = Practically Exactly-Once
+
+
+Because:
+
+Retry ensures no money loss
+
+Idempotency prevents duplicate transfer
+
+What is Idempotency?
+
+Same request executed multiple times → result stays same
+
+Example:
+
+Transfer ₹1000 with transactionId = TXN123
+
+
+If request comes again:
+
+System checks:
+
+TXN123 already processed → IGNORE duplicate
+
+
+So no double debit 👍
+
+Visual Example
+
+Without idempotency:
+
+Retry happens twice
+
+Debit ₹1000 → OK
+Debit ₹1000 → AGAIN ❌
+Balance wrong
+
+
+With idempotency:
+
+Debit ₹1000 → OK
+Retry → TXN exists → ignore
+Balance correct ✅
+
+Where duplicates come from
+
+Network timeout
+
+Client retry
+
+Server retry
+
+Kafka re-delivery
+
+Load balancer retry
+
+User double click
+
+How to implement Idempotency (Banking Standard)
+
+Generate unique transactionId
+
+Store in DB
+
+Before processing → check if exists
+
+If exists → ignore duplicate
+
+Interview Answer (Important)
+
+If asked:
+
+“Difference between Exactly-Once and At-Least-Once?”
+
+Say:
+
+At-Least-Once ensures no message loss but duplicates possible
+
+Exactly-Once ensures no duplicates but complex & slow
+
+Real banking systems use At-Least-Once + Idempotency
+
+Idempotency prevents double debit/credit
+
+Used in payments, fintech, transfer systems
+
+Real Banking Failure Without Idempotency
+
+User clicks transfer twice
+
+Network retry occurs
+
+Same transaction executed twice
+
+Money deducted twice 💥
+
+Banks MUST prevent this.
+
+Key Takeaways
+
+At-Most-Once → unsafe (loss possible)
+
+At-Least-Once → retry safe but duplicates
+
+Exactly-Once → ideal but complex
+
+Banking uses → At-Least-Once + Idempotency
+
+Prevents double transfer
+
+Ensures money safety
+
+What is Idempotency?
+
+Same request executed multiple times → result stays SAME
+
+In banking:
+
+Transfer ₹1000 with txnId = TXN123
+
+
+If request comes again:
+
+System detects TXN123 already processed → ignore duplicate
+
+
+So no double debit / credit.
+
+Why duplicates happen in real systems
+
+User double-click transfer
+
+Network timeout → client retries
+
+Server retries
+
+Kafka re-delivery
+
+Load balancer retry
+
+Mobile app resubmits request
+
+Without idempotency → double money transfer 💥
+
+Banking Rule
+
+Every transfer MUST have:
+
+Unique transactionId (Idempotency Key)
+
+Idempotency Flow (Industry Standard)
+1. Client sends txnId + transfer request
+2. System checks DB:
+   → txnId exists? YES → return old result
+   → NO → process transfer
+3. Save txnId + status
+
+DB Table Design (Important)
+transactions
+-------------
+id (PK)
+transaction_id (UNIQUE)
+from_account
+to_account
+amount
+status (PENDING / SUCCESS / FAILED)
+created_at
+
+
+transaction_id must be UNIQUE
+
+Coding — Step-by-step
+Step 1 — Transaction Entity
+@Entity
+@Table(name = "transactions",
+       uniqueConstraints = @UniqueConstraint(columnNames = "transactionId"))
+public class Transaction {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String transactionId;
+
+    private Long fromAccount;
+    private Long toAccount;
+    private Double amount;
+
+    @Enumerated(EnumType.STRING)
+    private Status status;
+
+    public enum Status {
+        PENDING, SUCCESS, FAILED
+    }
+}
+
+Step 2 — Repository
+public interface TransactionRepository extends JpaRepository<Transaction, Long> {
+
+    Optional<Transaction> findByTransactionId(String transactionId);
+
+    boolean existsByTransactionId(String transactionId);
+}
+
+Step 3 — Transfer Request DTO
+public class TransferRequest {
+    private String transactionId;
+    private Long fromAccount;
+    private Long toAccount;
+    private Double amount;
+}
+
+Step 4 — Idempotent Transfer Service
+@Transactional
+public String transfer(TransferRequest req) {
+
+    // 1. Check duplicate
+    Optional<Transaction> existing =
+            txnRepo.findByTransactionId(req.getTransactionId());
+
+    if (existing.isPresent()) {
+        return "Duplicate request ignored (already processed)";
+    }
+
+    // 2. Load accounts
+    Account from = accountRepo.findById(req.getFromAccount())
+            .orElseThrow(() -> new RuntimeException("From account not found"));
+
+    Account to = accountRepo.findById(req.getToAccount())
+            .orElseThrow(() -> new RuntimeException("To account not found"));
+
+    if (from.getBalance() < req.getAmount()) {
+        throw new RuntimeException("Insufficient balance");
+    }
+
+    // 3. Save transaction PENDING
+    Transaction txn = new Transaction();
+    txn.setTransactionId(req.getTransactionId());
+    txn.setFromAccount(from.getAccountId());
+    txn.setToAccount(to.getAccountId());
+    txn.setAmount(req.getAmount());
+    txn.setStatus(Transaction.Status.PENDING);
+    txnRepo.save(txn);
+
+    // 4. Perform transfer
+    from.setBalance(from.getBalance() - req.getAmount());
+    to.setBalance(to.getBalance() + req.getAmount());
+
+    accountRepo.save(from);
+    accountRepo.save(to);
+
+    // 5. Mark SUCCESS
+    txn.setStatus(Transaction.Status.SUCCESS);
+
+    return "Transfer successful";
+}
+
+Step 5 — Controller
+@PostMapping("/transfer")
+public ResponseEntity<String> transfer(@RequestBody TransferRequest req) {
+    return ResponseEntity.ok(transferService.transfer(req));
+}
+
+Test Case
+Request
+{
+  "transactionId": "TXN1001",
+  "fromAccount": 1,
+  "toAccount": 2,
+  "amount": 500
+}
+
+Call SAME request twice
+
+1st → Transfer successful
+2nd → Duplicate ignored
+
+Balance stays correct ✅
+
+Production Enhancements
+
+Banks also add:
+
+Unique DB constraint (extra safety)
+
+Retry + backoff
+
+Transaction logs
+
+Audit table
+
+Outbox pattern
+
+Dead letter queue
+
+Status tracking (PENDING → SUCCESS)
+
+Interview Answer
+
+If asked “How do you prevent double transfer?”
+
+Say:
+
+Use Idempotency key (transactionId)
+
+Store in DB with unique constraint
+
+Check before processing
+
+If exists → ignore duplicate
+
+Combine with retry → safe transfer
+
+Used in banking, payments, fintech
+
+You Learned
+
+What is idempotency
+
+Why duplicates happen
+
+How banking prevents double debit
+
+DB design for idempotency
+
+Production-safe transfer flow
+
+4️⃣ Event-Driven Architecture (EDA) — Async Banking Flow
+What is Event-Driven Architecture?
+
+Instead of direct service-to-service calls, systems communicate using events/messages.
+
+A service produces an event → other services consume and react.
+
+Why Banking Uses EDA
+
+Bank transfer involves many side actions:
+
+Debit / Credit
+
+Notification (SMS / Email)
+
+Audit logging
+
+Fraud detection
+
+Analytics
+
+Ledger update
+
+Doing all synchronously = slow ❌
+So we use async event flow.
+
+Traditional (Synchronous)
+Transfer Service
+   → Notification Service
+   → Audit Service
+   → Fraud Service
+   → Analytics
+
+
+Problems:
+
+Slow response
+
+Tight coupling
+
+One failure breaks whole flow
+
+Event-Driven (Async)
+Transfer Service → Kafka/Event → Notification Service
+                              → Audit Service
+                              → Fraud Detection
+                              → Analytics
+
+
+Transfer finishes fast ✅
+Other services run independently ✅
+
+Core Components
+1. Producer
+
+Service that publishes event
+
+Example:
+
+TransferCompletedEvent
+
+2. Broker (Kafka / RabbitMQ)
+
+Stores and distributes events.
+
+3. Consumer
+
+Services that listen and react.
+
+Example:
+
+Notification Service → send SMS
+
+Audit Service → store logs
+
+Fraud Service → risk analysis
+
+Banking Transfer Event Flow
+User initiates transfer
+   ↓
+Transfer Service (DB transaction)
+   ↓
+Publish Event → TRANSFER_SUCCESS
+   ↓
+Kafka
+   ↓
+Consumers:
+   → Notification → "₹500 sent"
+   → Audit → store transaction
+   → Fraud → detect suspicious transfer
+
+Event Example (JSON)
+{
+  "eventType": "TRANSFER_SUCCESS",
+  "transactionId": "TXN1001",
+  "fromAccount": 1,
+  "toAccount": 2,
+  "amount": 500,
+  "timestamp": "2026-02-13T10:30:00"
+}
+
+Simple Spring Boot Kafka Example
+Producer
+public void publishTransferEvent(Transaction txn) {
+
+    TransferEvent event = new TransferEvent(
+            txn.getTransactionId(),
+            txn.getFromAccount(),
+            txn.getToAccount(),
+            txn.getAmount()
+    );
+
+    kafkaTemplate.send("transfer-topic", event);
+}
+
+Consumer
+@KafkaListener(topics = "transfer-topic", groupId = "notification-group")
+public void consume(TransferEvent event) {
+
+    System.out.println("Sending SMS: Transfer success " + event.getTransactionId());
+}
+
+Benefits of EDA
+
+Loose coupling
+
+Async processing
+
+Scalable
+
+Fault tolerant
+
+Faster API response
+
+Easy to add new services
+
+Banking Safety Additions
+
+Idempotent consumers (avoid duplicate events)
+
+Retry + Dead Letter Queue
+
+Event persistence (Outbox Pattern)
+
+Exactly-once (Kafka transactions)
+
+Monitoring + tracing
+
+Outbox Pattern (Important)
+
+Problem:
+If DB commit succeeds but event publish fails → system inconsistent.
+
+Solution:
+
+Save event in outbox table
+
+Background worker publishes to Kafka
+
+Ensures DB + Event consistency
+
+Interview Answer
+
+If asked “Why Event-Driven Architecture in banking?”
+
+Say:
+
+To decouple services
+
+To process async operations (notification, audit, fraud)
+
+Improves scalability & performance
+
+Works with Kafka / messaging
+
+Ensures reliability using idempotency & outbox pattern
+
+You Learned
+
+Event-Driven Architecture basics
+
+Async banking flow
+
+Kafka producer/consumer
+
+Why banks use EDA
+
+Outbox pattern importance
+
+5️⃣ Failure Scenarios in Banking Systems
+
+Banking systems must guarantee:
+
+❌ No money loss
+
+❌ No double debit
+
+❌ No partial transfer
+
+❌ No silent failure
+
+So we design for failures first.
+
+Common Real-World Failure Cases
+1. Crash After Debit (Most Dangerous)
+Debit Account A → SUCCESS
+System crashes before Credit → FAILED
+
+
+Result → Money lost 💥
+
+Solution
+
+Saga Compensation → Refund debit
+
+Transaction status tracking
+
+Retry credit safely
+
+2. Duplicate Transfer (User / Network Retry)
+Same transfer executed twice
+
+
+Result → Double debit 💥
+
+Solution
+
+Idempotency key (transactionId)
+
+Unique DB constraint
+
+Ignore duplicates
+
+3. Service Crash Mid-Transaction
+Transfer started → service restarted
+
+Solution
+
+DB Transaction (@Transactional)
+
+Status: PENDING → SUCCESS / FAILED
+
+Recovery job for stuck transactions
+
+4. Event Published Twice (Kafka Redelivery)
+
+Kafka guarantees At-Least-Once → duplicates possible.
+
+Solution
+
+Idempotent consumers
+
+Check transactionId before processing
+
+5. Network Timeout After Success
+
+Client thinks transfer failed → retries → duplicate.
+
+Solution
+
+Idempotency
+
+Return same response for same txnId
+
+6. DB Deadlock / Lock Timeout
+
+Two transfers update same account simultaneously.
+
+Solution
+
+Retry with backoff
+
+Optimistic / Pessimistic locking (Day 9)
+
+Retry Strategy (Banking Standard)
+
+Not all failures are permanent.
+
+Retry for:
+
+Network error
+
+Temporary DB issue
+
+Kafka publish failure
+
+Service timeout
+
+Don’t Retry for:
+
+Insufficient balance
+
+Invalid account
+
+Validation error
+
+Retry with Backoff Example
+Try 1 → fail
+Wait 1 sec
+Try 2 → fail
+Wait 2 sec
+Try 3 → success
+
+
+Avoids system overload.
+
+Compensation (Undo) — Saga Concept
+
+If one step fails → undo previous step.
+
+Transfer Example
+Step 1: Debit A → SUCCESS
+Step 2: Credit B → FAILED
+
+Compensation:
+Refund A → SUCCESS
+
+
+System returns to consistent state.
+
+Transaction Status Tracking (Very Important)
+PENDING → SUCCESS → FAILED → REVERSED
+
+
+Used for:
+
+Recovery
+
+Audit
+
+Retry
+
+Monitoring
+
+Production Patterns Used in Banking
+
+Idempotency
+
+Saga (Compensation)
+
+Retry + Backoff
+
+Dead Letter Queue (DLQ)
+
+Outbox Pattern
+
+Transaction Logs
+
+Locking (avoid race)
+
+Monitoring & Alerts
+
+Example Safe Transfer Flow
+1. Create transaction → PENDING
+2. Debit → OK
+3. Credit → FAIL
+4. Retry credit → FAIL
+5. Compensation → Refund debit
+6. Mark transaction → FAILED / REVERSED
+
+
+No money lost ✅
+
+Interview Answer (Strong)
+
+If asked “How banking handles failures?”
+
+Say:
+
+Use idempotency to prevent duplicates
+
+Use Saga for distributed transactions
+
+Use retry with exponential backoff
+
+Track transaction status (PENDING/SUCCESS/FAILED)
+
+Use compensation for rollback
+
+Use DLQ for failed events
+
+Ensure no money loss & strong consistency

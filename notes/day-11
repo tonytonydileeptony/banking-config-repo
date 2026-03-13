@@ -1,0 +1,322 @@
+📘 Day 11 — Spring Boot Internals & Auto-Configuration
+🎯 Goal
+
+Understand how Spring Boot works internally, not just how to use it.
+
+After today you should be able to explain:
+
+How Spring Boot starts
+
+What happens inside @SpringBootApplication
+
+How AutoConfiguration works
+
+How beans are created automatically
+
+How to debug Spring Boot startup
+
+How to create your own AutoConfiguration (advanced)
+
+This is frequently asked in 3–6 yrs backend interviews.
+
+🧠 Part-1: Spring Boot Startup Flow (Internal)
+
+When you run:
+
+@SpringBootApplication
+public class BankingApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(BankingApplication.class, args);
+    }
+}
+
+What happens internally?
+Step-1: SpringApplication.run()
+
+Spring Boot:
+
+Creates SpringApplication object
+
+Detects:
+
+Web app / Non-web app
+
+Environment
+
+Classpath dependencies
+
+Loads ApplicationContext
+
+Step-2: Creates Application Context
+
+For Web app →
+AnnotationConfigServletWebServerApplicationContext
+
+Inside this:
+
+BeanFactory created
+
+Bean definitions registered
+
+AutoConfigurations loaded
+
+Beans initialized
+
+Step-3: Auto Configuration Triggered
+
+Spring Boot checks:
+
+META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
+
+
+Loads 100+ AutoConfiguration classes automatically
+
+Examples:
+
+DataSourceAutoConfiguration
+
+HibernateJpaAutoConfiguration
+
+WebMvcAutoConfiguration
+
+JacksonAutoConfiguration
+
+SecurityAutoConfiguration
+
+Step-4: Embedded Server Starts
+
+Tomcat / Jetty / Undertow created
+
+Port bound (default 8080)
+
+DispatcherServlet registered
+
+Step-5: Application Ready
+
+Events fired:
+
+ApplicationStartingEvent
+
+ApplicationEnvironmentPreparedEvent
+
+ApplicationPreparedEvent
+
+ApplicationStartedEvent
+
+ApplicationReadyEvent
+
+🧩 Part-2: What is @SpringBootApplication?
+
+It is a combination of 3 annotations:
+
+@SpringBootConfiguration
+@EnableAutoConfiguration
+@ComponentScan
+
+1️⃣ @ComponentScan
+
+Scans packages → detects:
+
+@Component
+
+@Service
+
+@Repository
+
+@Controller
+
+@Configuration
+
+Registers them as beans
+
+2️⃣ @EnableAutoConfiguration
+
+Core of Spring Boot magic ✨
+
+Automatically configures:
+
+DB
+
+JPA
+
+Kafka
+
+Redis
+
+Web
+
+Security
+
+Cache
+
+Based on classpath + properties
+
+3️⃣ @SpringBootConfiguration
+
+Special version of @Configuration
+
+Marks main class as Spring Configuration
+
+⚙️ Part-3: How AutoConfiguration Works Internally
+
+Example: DataSource AutoConfig
+
+Spring Boot checks:
+
+Condition-1: Class exists?
+@ConditionalOnClass(DataSource.class)
+
+Condition-2: Property exists?
+@ConditionalOnProperty("spring.datasource.url")
+
+Condition-3: Bean missing?
+@ConditionalOnMissingBean
+
+
+If all true → creates DataSource bean automatically
+
+🔍 Part-4: Most Important Conditional Annotations
+Annotation	Purpose
+@ConditionalOnClass	Run if class exists
+@ConditionalOnMissingBean	Run if bean NOT present
+@ConditionalOnProperty	Run if property set
+@ConditionalOnBean	Run if bean exists
+@ConditionalOnWebApplication	Only for web apps
+@ConditionalOnExpression	SpEL condition
+🧪 Part-5: How to See AutoConfiguration in Logs
+
+Run app with:
+
+debug=true
+
+
+Startup log shows:
+
+Which AutoConfigs loaded
+
+Which skipped
+
+Why skipped
+
+Very useful for debugging.
+
+🧱 Part-6: Bean Lifecycle (Internal)
+
+BeanDefinition created
+
+Bean instantiated
+
+Dependencies injected
+
+@PostConstruct called
+
+Bean ready
+
+@PreDestroy on shutdown
+
+🏗️ Part-7: Create Your Own AutoConfiguration (Advanced)
+Step-1: Create Config
+@Configuration
+@ConditionalOnProperty(name="bank.feature.audit.enabled", havingValue="true")
+public class AuditAutoConfiguration {
+
+    @Bean
+    @ConditionalOnMissingBean
+    public AuditService auditService() {
+        return new AuditService();
+    }
+}
+
+Step-2: Register AutoConfig
+
+Create file:
+
+META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
+
+
+Add:
+
+com.bank.config.AuditAutoConfiguration
+
+Step-3: Enable via Properties
+bank.feature.audit.enabled=true
+
+
+Spring Boot now auto-creates AuditService bean
+
+🔎 Part-8: How Spring Finds Beans Internally
+
+Spring uses:
+
+ClassPath scanning
+
+Reflection
+
+BeanDefinition registry
+
+CGLIB proxies (for @Transactional, @Cacheable, etc.)
+
+🧠 Part-9: Interview Questions
+Core
+
+Explain Spring Boot startup flow
+
+What happens inside SpringApplication.run()?
+
+What is AutoConfiguration?
+
+How does Spring Boot detect DB automatically?
+
+What is @SpringBootApplication internally?
+
+How DispatcherServlet created automatically?
+
+Difference: @Configuration vs @Component
+
+How Spring Boot starts embedded Tomcat?
+
+How to disable specific AutoConfig?
+
+How to debug AutoConfiguration?
+
+Advanced (5+ yrs)
+
+How BeanFactory works internally?
+
+What is ApplicationContext hierarchy?
+
+What is Condition Evaluation Report?
+
+How to write custom AutoConfiguration?
+
+How Spring Boot loads auto config classes?
+
+What is SpringFactoriesLoader (old) vs new imports?
+
+How AOP proxy created?
+
+How @Transactional works internally?
+
+What is CGLIB vs JDK Proxy?
+
+What is BeanPostProcessor?
+
+🧪 Part-10: Practical Debug Exercise
+
+Add:
+
+debug=true
+logging.level.org.springframework=DEBUG
+
+
+Observe:
+
+Bean creation order
+
+AutoConfig conditions
+
+Skipped configs
+
+Loaded configs
+
+This gives real internal understanding
