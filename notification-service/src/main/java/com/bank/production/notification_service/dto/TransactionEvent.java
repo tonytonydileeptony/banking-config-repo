@@ -7,7 +7,7 @@ public class TransactionEvent {
     private Long fromAccount;
     private Long toAccount;
     private BigDecimal amount;
-    private String status;
+    private Status status;
 
     public Long getFromAccount() {
         return fromAccount;
@@ -33,11 +33,11 @@ public class TransactionEvent {
         this.amount = amount;
     }
 
-    public String getStatus() {
+    public Status getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(Status status) {
         this.status = status;
     }
 }

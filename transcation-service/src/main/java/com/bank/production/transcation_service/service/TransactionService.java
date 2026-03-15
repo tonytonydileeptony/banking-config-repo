@@ -19,6 +19,7 @@ public class TransactionService {
 
     @Autowired
     private TransactionRepository repository;
+    @Autowired
     private TransactionProducer producer;
     @Autowired
     private AccountClient accountClient;
