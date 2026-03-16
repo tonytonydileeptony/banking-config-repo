@@ -35,13 +35,7 @@
     <!-- Dependency Management for Spring Cloud BOM -->
     <dependencyManagement>
         <dependencies>
-            <dependency>
-                <groupId>org.springframework.cloud</groupId>
-                <artifactId>spring-cloud-dependencies</artifactId>
-                <version>${spring-cloud.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
+            <!-- spring-cloud-dependencies import removed from module to inherit root BOM -->
         </dependencies>
     </dependencyManagement>
 

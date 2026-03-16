@@ -1,0 +1,862 @@
+In a production microservices architecture, an API Gateway is the single entry point for all client requests. Instead of calling each service directly, clients send requests to the gateway, which routes them to the correct service.
+
+In the Spring ecosystem, the most common gateway is Spring Cloud Gateway. It works very well with Netflix Eureka and centralized configuration using Spring Cloud Config.
+
+Day 36 – API Gateway Implementation
+1️⃣ Why API Gateway is Needed
+
+Without Gateway:
+
+Client → Account Service
+Client → Transaction Service
+Client → Notification Service
+
+Problems:
+
+Multiple endpoints
+
+No centralized security
+
+Difficult rate limiting
+
+No unified logging
+
+With API Gateway:
+
+Client
+   ↓
+API Gateway
+   ↓
+-----------------------------
+| Account | Transaction | Notification |
+
+The gateway routes requests to the correct microservice.
+
+2️⃣ Microservices Architecture
+                 Client
+                   |
+                   v
+            API Gateway
+                   |
+                   v
+             Service Discovery
+                   |
+     ---------------------------------
+     |              |                |
+     v              v                v
+Account Service  Transaction Service  Notification Service
+
+Gateway asks Eureka for service location.
+
+3️⃣ Create Gateway Service
+
+Create Spring Boot project.
+
+Dependencies:
+
+Spring Cloud Gateway
+Eureka Discovery Client
+Spring Boot Actuator
+
+Main class:
+
+@SpringBootApplication
+@EnableDiscoveryClient
+public class ApiGatewayApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(ApiGatewayApplication.class, args);
+    }
+}
+4️⃣ Gateway Configuration
+
+application.yml
+
+server:
+  port: 8080
+
+spring:
+  application:
+    name: API-GATEWAY
+
+  cloud:
+    gateway:
+      routes:
+        - id: account-service
+          uri: lb://ACCOUNT-SERVICE
+          predicates:
+            - Path=/accounts/**
+
+        - id: transaction-service
+          uri: lb://TRANSACTION-SERVICE
+          predicates:
+            - Path=/transactions/**
+
+lb:// means load balance using Eureka registry.
+
+5️⃣ Route Example
+
+Client request:
+
+GET /accounts/1
+
+Flow:
+
+Client
+  ↓
+Gateway (Path=/accounts/**)
+  ↓
+ACCOUNT-SERVICE
+  ↓
+Response back to client
+6️⃣ Gateway Features Used in Production
+Authentication
+
+Centralized security using JWT.
+
+Example filter:
+
+Client → Gateway → Validate Token → Forward Request
+Rate Limiting
+
+Example:
+
+100 requests per minute per user
+
+Prevent API abuse.
+
+Logging
+
+Gateway logs every request.
+
+Client IP
+Request URL
+Response time
+Request Transformation
+
+Example:
+
+Client request → modify header → send to service
+7️⃣ Gateway Filters Example
+filters:
+  - AddRequestHeader=X-Request-Source, API-Gateway
+
+Adds header to every request.
+
+8️⃣ Load Balancing
+
+If multiple instances exist:
+
+ACCOUNT-SERVICE
+   |       |
+8081     8082
+
+Gateway distributes traffic automatically.
+
+9️⃣ Production Architecture So Far
+
+Your banking microservice system now looks like:
+
+                 Client
+                   |
+                   v
+              API Gateway
+                   |
+                   v
+             Eureka Server
+                   |
+   ------------------------------------------
+   |                |                       |
+   v                v                       v
+Account Service  Transaction Service   Notification Service
+        |
+        v
+     Config Server
+        |
+        v
+       Git
+🔟 Real Banking Use Cases
+
+Gateway handles:
+
+Authentication
+
+Rate limiting
+
+Request logging
+
+API versioning
+
+Security filtering
+
+1️⃣1️⃣ GS-Level Interview Questions
+Why API Gateway instead of direct service calls?
+
+Answer:
+
+Centralized security
+
+Routing
+
+Rate limiting
+
+Monitoring
+
+Reduced client complexity
+
+Difference between Gateway and Load Balancer?
+Feature	Gateway	Load Balancer
+Routing	Yes	No
+Authentication	Yes	No
+Rate limiting	Yes	No
+Protocol transformation	Yes	No
+What happens if Gateway fails?
+
+Production solution:
+
+Multiple Gateway Instances
+        ↓
+Load Balancer
+        ↓
+Traffic distributed
+1️⃣2️⃣ Next Step in Your Microservices Journey
+
+Next important production feature:
+
+Day 37
+
+➡ Circuit Breaker
+
+Using Resilience4j
+
+Handles:
+
+Service failures
+
+Timeouts
+
+Retry
+
+Fallback responses
+
+1. What is an API Gateway?
+
+Expected answer:
+
+An API Gateway is a single entry point for all client requests in a microservices architecture. It routes requests to appropriate services and handles cross-cutting concerns like authentication, rate limiting, logging, and monitoring.
+
+2. Why do we need an API Gateway in microservices?
+
+Without Gateway:
+
+Client → Account Service
+Client → Transaction Service
+Client → Notification Service
+
+Problems:
+
+Too many endpoints
+
+Security duplicated across services
+
+Hard to manage
+
+With Gateway:
+
+Client → API Gateway → Microservices
+3. What are the main responsibilities of an API Gateway?
+
+Common responsibilities:
+
+Request routing
+
+Authentication
+
+Rate limiting
+
+Logging
+
+Load balancing
+
+Request transformation
+
+2️⃣ Architecture Questions
+4. Explain API Gateway architecture in microservices.
+
+Typical architecture:
+
+Client
+   ↓
+API Gateway
+   ↓
+Service Discovery
+   ↓
+Microservices
+
+Service discovery often uses Netflix Eureka.
+
+5. How does API Gateway perform load balancing?
+
+When multiple instances exist:
+
+ACCOUNT-SERVICE
+   |       |
+8081     8082
+
+Gateway distributes traffic across instances using service registry.
+
+3️⃣ Implementation Questions
+6. How do you configure routing in Spring Cloud Gateway?
+
+Example:
+
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: account-service
+          uri: lb://ACCOUNT-SERVICE
+          predicates:
+            - Path=/accounts/**
+
+lb:// means load balance using service discovery.
+
+7. What are predicates in API Gateway?
+
+Predicates define conditions to route requests.
+
+Examples:
+
+Path
+Header
+Method
+Host
+
+Example:
+
+Path=/accounts/**
+8. What are filters in API Gateway?
+
+Filters modify requests or responses.
+
+Examples:
+
+Add headers
+
+Authentication
+
+Logging
+
+Rate limiting
+
+Example:
+
+filters:
+  - AddRequestHeader=X-Request-Source, Gateway
+4️⃣ Security Questions
+9. How do you implement authentication in API Gateway?
+
+Usually using JWT tokens.
+
+Flow:
+
+Client → Gateway → Token validation → Microservice
+
+Gateway validates token before forwarding request.
+
+10. Why implement authentication in Gateway instead of services?
+
+Benefits:
+
+Centralized security
+
+Reduced duplication
+
+Better performance
+
+5️⃣ Performance Questions
+11. How does API Gateway prevent API abuse?
+
+Using rate limiting.
+
+Example:
+
+100 requests per minute per user
+12. What happens if API Gateway becomes a bottleneck?
+
+Solutions:
+
+Multiple Gateway Instances
+        ↓
+Load Balancer
+        ↓
+Traffic distributed
+6️⃣ Failure Scenario Questions
+13. What happens if one microservice fails?
+
+Gateway can use fallback responses.
+
+Often implemented using Resilience4j.
+
+14. How do you handle timeout issues in Gateway?
+
+Use:
+
+Timeout configuration
+
+Circuit breaker
+
+Retry mechanism
+
+7️⃣ Advanced GS-Level Questions
+15. Difference between API Gateway and Load Balancer?
+Feature	API Gateway	Load Balancer
+Routing	Yes	Limited
+Authentication	Yes	No
+Rate limiting	Yes	No
+Request transformation	Yes	No
+16. What is the difference between API Gateway and Service Mesh?
+
+API Gateway:
+
+Handles external traffic
+
+Service mesh:
+
+Handles internal service-to-service communication
+
+Example service mesh tool:
+
+Istio
+
+8️⃣ Real GS Scenario Question
+
+Interview question example:
+
+Your API Gateway latency suddenly increased from 20ms to 500ms.
+How would you troubleshoot?
+
+Expected approach:
+
+Check gateway logs
+
+Check downstream service latency
+
+Check thread pool usage
+
+Check network latency
+
+Check database calls
+
+9️⃣ Design Question (Very Common)
+
+Design an API Gateway for a banking system
+
+Expected architecture:
+
+Client
+   ↓
+API Gateway
+   ↓
+Authentication Filter
+   ↓
+Service Discovery
+   ↓
+Account Service
+Transaction Service
+Notification Service
+
+1️⃣ JWT Authentication Implementation in Gateway
+
+In most fintech systems, authentication is handled at the gateway layer instead of every service.
+
+JWT usually comes from an Auth Service.
+
+Flow:
+
+Client Login
+     ↓
+Auth Service
+     ↓
+JWT Token Generated
+     ↓
+Client sends JWT in Header
+     ↓
+API Gateway validates token
+     ↓
+Forward request to microservice
+
+Token header example:
+
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+Gateway Filter Example
+
+Create a filter to validate JWT.
+
+@Component
+public class JwtAuthenticationFilter implements GlobalFilter {
+
+    @Override
+    public Mono<Void> filter(ServerWebExchange exchange,
+                             GatewayFilterChain chain) {
+
+        String authHeader = exchange.getRequest()
+                .getHeaders()
+                .getFirst("Authorization");
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new RuntimeException("Missing token");
+        }
+
+        String token = authHeader.substring(7);
+
+        if (!JwtUtil.validateToken(token)) {
+            throw new RuntimeException("Invalid JWT");
+        }
+
+        return chain.filter(exchange);
+    }
+}
+
+Responsibilities:
+
+Extract JWT
+
+Validate signature
+
+Validate expiration
+
+Forward request
+
+2️⃣ Rate Limiter Implementation
+
+Rate limiting protects APIs from abuse.
+
+Example:
+
+100 requests per minute per user
+
+Gateway supports Redis-based rate limiting using Redis.
+
+Example Configuration
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: account-service
+          uri: lb://ACCOUNT-SERVICE
+          predicates:
+            - Path=/accounts/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+
+Meaning:
+
+10 requests per second
+burst up to 20
+Rate Limiting Flow
+Client Request
+     ↓
+Gateway
+     ↓
+Check Redis Counter
+     ↓
+If limit exceeded → Reject request
+
+Response:
+
+HTTP 429 TOO MANY REQUESTS
+3️⃣ Gateway Filter Coding Questions
+
+Interviewers often ask:
+
+Write a custom filter to log requests.
+
+Example:
+
+@Component
+public class LoggingFilter implements GlobalFilter {
+
+    @Override
+    public Mono<Void> filter(ServerWebExchange exchange,
+                             GatewayFilterChain chain) {
+
+        ServerHttpRequest request = exchange.getRequest();
+
+        System.out.println("Request Path: " + request.getURI());
+        System.out.println("Method: " + request.getMethod());
+
+        return chain.filter(exchange);
+    }
+}
+Other Filters Interviewers Expect
+
+Examples:
+
+1️⃣ Add header filter
+
+AddRequestHeader=X-Source, Gateway
+
+2️⃣ Modify response filter
+
+3️⃣ Authentication filter
+
+4️⃣ Logging filter
+
+4️⃣ Debugging Production Issues in Gateway
+
+GS interviews love production debugging scenarios.
+
+Example question:
+
+Gateway latency increased from 20ms → 500ms.
+
+Steps to debug:
+
+1 Check gateway CPU & memory
+top
+jstat
+2 Check downstream services
+
+Sometimes slow service causes gateway delay.
+
+Gateway → Transaction Service → DB slow
+3 Check thread pool
+
+Too many requests may exhaust threads.
+
+4 Check Redis latency
+
+Rate limiter depends on Redis.
+
+5 Check logs & tracing
+
+Using tools like
+
+Prometheus
+
+Grafana
+
+5️⃣ Complete Fintech Microservices Architecture
+
+A typical banking architecture (similar to what companies like Goldman Sachs use):
+
+                     Client Apps
+                          |
+                          v
+                    API Gateway
+                          |
+                Authentication Filter
+                          |
+                          v
+                Service Discovery
+                          |
+        -------------------------------------------------
+        |             |              |                  |
+        v             v              v                  v
+   Account Service  Transaction   Payment Service   Notification Service
+                      Service
+        |             |
+        |             v
+        |         Message Broker
+        |             |
+        |             v
+        |        Event Streaming
+        |             |
+        v             v
+   Database        Async Events
+
+Event streaming handled by:
+
+Apache Kafka
+
+Infrastructure Layer
+Config Server → centralized configs
+Redis → caching + rate limiter
+Kafka → async events
+Database → MySQL/Postgres
+Observability → Prometheus + Grafana
+Full Architecture
+Client
+   ↓
+API Gateway
+   ↓
+Auth Service (JWT)
+   ↓
+Service Discovery
+   ↓
+Microservices
+   ↓
+Kafka Messaging
+   ↓
+Database
+6️⃣ GS Interview Trick Question
+
+Interviewers may ask:
+
+Why implement authentication in gateway instead of microservices?
+
+Answer:
+
+Centralized security
+
+Reduced duplicate code
+
+Faster request rejection
+
+Easier monitoring
+
+7️⃣ Very Advanced Question
+
+How do you prevent Gateway from becoming a single point of failure?
+
+Solution:
+
+Multiple Gateway Instances
+       ↓
+Load Balancer
+       ↓
+Auto scaling
+Run Multiple Gateway Instances (Horizontal Scaling)
+
+Instead of running only one gateway instance:
+
+Client → Gateway
+
+Run multiple instances:
+
+                Client
+                  |
+                  v
+            Load Balancer
+             /        \
+            v          v
+      Gateway-1    Gateway-2
+            \          /
+             v        v
+           Microservices
+
+If one gateway crashes, the other continues serving traffic.
+
+2️⃣ Use a Load Balancer
+
+A load balancer distributes traffic across gateway instances.
+
+Example load balancers:
+
+NGINX
+
+HAProxy
+
+Cloud load balancers (AWS / GCP)
+
+Flow:
+
+Client → Load Balancer → Gateway Instances → Services
+3️⃣ Container Orchestration & Auto-Scaling
+
+Deploy gateway instances using containers and orchestration platforms like Kubernetes.
+
+Benefits:
+
+Automatic scaling
+
+Self-healing
+
+Restart failed gateway pods
+
+Example:
+
+Kubernetes Deployment
+Replicas: 3
+
+Gateway Pod 1
+Gateway Pod 2
+Gateway Pod 3
+
+If one pod fails → Kubernetes starts a new one automatically.
+
+4️⃣ Health Checks
+
+Load balancers continuously check if gateway instances are healthy.
+
+Example health endpoint:
+
+/actuator/health
+
+Provided by Spring Boot Actuator.
+
+If an instance fails health checks:
+
+Load Balancer removes it from traffic
+5️⃣ Circuit Breaker for Downstream Failures
+
+If a microservice becomes slow or fails, the gateway should not block all requests.
+
+Use Resilience4j to provide:
+
+Fallback responses
+
+Timeout handling
+
+Retry policies
+
+Example:
+
+Gateway → Transaction Service (down)
+       → Fallback response
+6️⃣ Caching at Gateway Layer
+
+Frequently accessed responses can be cached using Redis.
+
+Benefits:
+
+Reduced load on microservices
+
+Faster responses
+
+7️⃣ Observability & Monitoring
+
+To detect failures early, production systems use monitoring tools like:
+
+Prometheus
+
+Grafana
+
+They monitor:
+
+Gateway latency
+
+Request count
+
+Error rate
+
+8️⃣ Real Production Architecture
+                    Client
+                      |
+                      v
+                Load Balancer
+                 /        \
+                v          v
+          Gateway-1     Gateway-2
+                |          |
+                v          v
+           Service Discovery
+                |
+      ------------------------------
+      |            |               |
+      v            v               v
+ Account Service  Transaction   Notification
+                   Service       Service
+9️⃣ Perfect Interview Answer (GS Level)
+
+If asked:
+
+“How do you prevent an API Gateway from becoming a single point of failure?”
+
+You can answer:
+
+We deploy multiple gateway instances behind a load balancer so that traffic is distributed. Health checks remove failed instances automatically. In containerized environments we use Kubernetes for auto-scaling and self-healing. Additionally, we implement circuit breakers and monitoring to handle downstream failures and detect issues early.

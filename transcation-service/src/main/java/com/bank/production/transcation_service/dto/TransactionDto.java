@@ -5,6 +5,8 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import com.bank.production.dto.Status;
+
 @Getter
 @Setter
 public class TransactionDto {

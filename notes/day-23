@@ -1,0 +1,428 @@
+Day 23 – Rate Limiting (Token Bucket) ⛔
+
+Rate limiting is a core concept in backend systems to control how many requests a client or user can make in a given time window. The Token Bucket algorithm is one of the most popular implementations.
+
+1️⃣ What is Rate Limiting?
+
+Rate limiting is used to:
+
+Prevent DDoS attacks
+
+Protect APIs / microservices
+
+Ensure fair usage among users
+
+Example:
+
+Limit = 100 requests per minute per user
+
+If a user exceeds this, their requests are rejected or delayed.
+Rate limiting is a technique used in software systems to control the number of requests a user, client, or system can make to an API or service within a specified time period.
+
+It ensures fair usage, protects resources, and prevents abuse or overload.
+
+Key Points
+
+Purpose of Rate Limiting
+
+Prevent DDoS attacks or spamming
+
+Protect server resources (CPU, memory, DB)
+
+Ensure fair usage among users
+
+Maintain system stability and performance
+
+How It Works
+
+Each user/client is allowed N requests per time unit (e.g., 100 requests/minute).
+
+Requests exceeding the limit are rejected or delayed.
+
+Common Types of Rate Limiting
+Type	Description
+Fixed Window	Limit requests per fixed time window (e.g., 100 req/min).
+Sliding Window	Limit requests based on a rolling time window for smoother control.
+Token Bucket	Allows bursts, refills tokens at a constant rate (most flexible).
+Leaky Bucket	Smooths traffic, no bursts allowed, processes requests at constant rate.
+Example
+Limit: 5 requests per second
+
+Scenario:
+- User sends 3 requests → Allowed
+- User sends 4th request in the same second → Rejected
+- Next second, counter resets → Requests allowed again
+
+Use Cases in Real Systems:
+
+API gateways
+
+Banking transactions
+
+Login attempts (e.g., 5 failed logins/minute)
+
+Streaming services (limit concurrent streams per user)
+
+Interview-Friendly Answer
+
+Rate limiting is a technique to restrict the number of requests a client can make to a system in a given period.
+ It protects resources, ensures fair usage, and prevents system overload.
+ Common implementations include fixed window, sliding window, token bucket, and leaky bucket algorithms.
+
+2️⃣ Token Bucket Algorithm – Concept 🎯
+
+The Token Bucket algorithm works like this:
+
+There is a “bucket” that holds tokens.
+
+Tokens are added to the bucket at a fixed rate.
+
+Each request consumes a token.
+
+If the bucket has no tokens, the request is rejected or queued.
+
+Key properties:
+
+Allows bursts of requests (up to bucket capacity)
+
+Smooths traffic over time
+
+Efficient for APIs / services
+
+✅ Illustration
+Bucket capacity = 5 tokens
+Token refill rate = 1 token/sec
+
+Time 0: bucket full → 5 requests allowed
+Time 1s: 1 token added → 1 request allowed
+Time 2s: 1 token added → 1 request allowed
+...
+
+Burst handling: sudden 5 requests allowed
+
+Rate control: cannot exceed refill rate in long run
+
+3️⃣ Simple Java Implementation
+import java.util.concurrent.atomic.AtomicInteger;
+
+public class TokenBucket {
+
+    private final int capacity;
+    private final int refillRate; // tokens per second
+    private AtomicInteger tokens;
+    private long lastRefillTimestamp;
+
+    public TokenBucket(int capacity, int refillRate) {
+        this.capacity = capacity;
+        this.refillRate = refillRate;
+        this.tokens = new AtomicInteger(capacity);
+        this.lastRefillTimestamp = System.currentTimeMillis();
+    }
+
+    public synchronized boolean allowRequest() {
+        refill();
+
+        if (tokens.get() > 0) {
+            tokens.decrementAndGet();
+            return true;
+        }
+
+        return false;
+    }
+
+    private void refill() {
+        long now = System.currentTimeMillis();
+        long secondsSinceLast = (now - lastRefillTimestamp) / 1000;
+        int refillTokens = (int) (secondsSinceLast * refillRate);
+
+        if (refillTokens > 0) {
+            tokens.set(Math.min(capacity, tokens.get() + refillTokens));
+            lastRefillTimestamp = now;
+        }
+    }
+}
+Usage
+TokenBucket bucket = new TokenBucket(5, 1); // capacity=5, refill 1/sec
+
+if(bucket.allowRequest()) {
+    System.out.println("Request allowed");
+} else {
+    System.out.println("Request denied");
+}
+4️⃣ Advantages of Token Bucket
+
+Allows burst traffic
+
+Smooths long-term request rate
+
+Easy to implement in memory or distributed systems
+
+Works well for APIs, login throttling, and services
+
+5️⃣ Real-World Banking Example 🏦
+
+Login Attempts: limit 5 login attempts per minute per user
+
+Fund Transfers API: limit 10 transfers/sec per customer
+
+Trading API: limit 100 orders per second per account
+
+How Token Bucket Works in Banking:
+
+Bucket capacity = 5 transfers
+Refill rate = 1 transfer/sec
+
+- User can send 5 transfers at once (burst)
+- Further transfers are limited to 1/sec
+
+Prevents system overload and abuse.
+
+6️⃣ Comparison with Leaky Bucket
+Feature	Token Bucket	Leaky Bucket
+Burst Allowed	✅ Yes	❌ No
+Smooth Rate	✅	✅
+Implementation	Easy	Easy
+Use Case	API Rate Limiting	Network traffic shaping
+30-Second Interview Answer 🎯
+
+Token Bucket is a rate-limiting algorithm that allows a certain number of requests (tokens) in bursts,
+and refills tokens at a fixed rate. Each request consumes a token. If no tokens are available, requests are rejected.
+It is widely used in APIs, banking systems, and distributed services to control traffic and prevent abuse.
+Token Bucket Algorithm – Visual Explanation 🪣
+1️⃣ Concept
+
+Imagine a bucket that holds tokens.
+
+Each token allows 1 request.
+
+Tokens are refilled at a fixed rate.
+
+If a request comes and there are tokens available, it is allowed.
+
+If no tokens are left, the request is rejected.
+
+2️⃣ Bucket Parameters
+Parameter	Description
+Capacity	Maximum tokens the bucket can hold (allows bursts)
+Refill Rate	Tokens added per second/minute (controls long-term rate)
+Current Tokens	Tokens available at any moment
+3️⃣ Example
+
+Settings:
+
+Bucket capacity = 5 tokens
+
+Refill rate = 1 token/sec
+
+Timeline:
+
+Time (sec)	Tokens in Bucket	Request Allowed?
+0	5	Yes (token used)
+0	4	Yes
+0	3	Yes
+0	2	Yes
+0	1	Yes
+0	0	No (bucket empty)
+1	1 (refilled)	Yes
+2	2	Yes
+
+✅ Burst handling: allows up to 5 requests instantly
+✅ Rate control: after the burst, requests are limited by refill rate
+
+4️⃣ Flow Diagram
+          +------------------+
+Requests →|  Token Bucket     |→ Allowed / Rejected
+          | Capacity: 5      |
+          | Refill: 1/sec    |
+          +------------------+
+Tokens added at fixed rate
+Requests consume tokens
+If no tokens → request rejected
+5️⃣ Real-World Banking Example 🏦
+
+Login attempts: max 5 per minute → burst allowed
+
+Fund transfers: max 10/sec per account → smooth traffic
+
+API calls: prevent system overload, ensure fair usage
+
+How it works:
+
+User Action → Token Bucket Check → Allow / Reject
+
+Burst requests are allowed up to bucket size
+
+Continuous requests are limited by refill rate
+
+6️⃣ Interview-Friendly Answer
+
+Token Bucket is a rate-limiting algorithm where a bucket holds tokens representing allowed requests. Tokens are added at a fixed rate. Each request consumes a token. If no tokens are left, the request is rejected. It allows bursts while controlling the long-term rate, making it ideal for APIs, banking transactions, and distributed systems.
+
+If you want, I can also show the Java implementation of Token Bucket with async request handling, which is super useful for system design / backend interviews.
+
+erfect! Let’s build a Distributed Token Bucket using Redis, which is widely used in banking APIs, Uber, Twitter, and other high-scale systems. This approach allows multiple servers to share a single rate limit, ensuring consistency across distributed instances.
+
+1️⃣ Concept
+
+Each user/client has a token bucket stored in Redis.
+
+Redis atomic operations (like INCR, EXPIRE, or Lua scripts) ensure thread-safe token updates across servers.
+
+Requests consume tokens, and if no tokens are left, the request is rejected.
+
+Key Advantages:
+
+Works in distributed environments
+
+Handles bursts
+
+Scales horizontally
+
+2️⃣ Using Redis + Java (Spring Boot)
+
+We’ll use:
+
+Spring Data Redis
+
+Lua script for atomic token consumption
+
+2.1 Dependencies (Maven)
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-redis</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter</artifactId>
+</dependency>
+2.2 Lua Script for Atomic Token Bucket
+-- token_bucket.lua
+local key = KEYS[1]
+local capacity = tonumber(ARGV[1])
+local refill_rate = tonumber(ARGV[2])
+local now = tonumber(ARGV[3])
+
+local bucket = redis.call("HMGET", key, "tokens", "last_refill")
+local tokens = tonumber(bucket[1]) or capacity
+local last_refill = tonumber(bucket[2]) or now
+
+-- calculate tokens to refill
+local delta = math.floor((now - last_refill) * refill_rate)
+tokens = math.min(capacity, tokens + delta)
+last_refill = now
+
+local allowed = 0
+if tokens > 0 then
+    tokens = tokens - 1
+    allowed = 1
+end
+
+-- update redis
+redis.call("HMSET", key, "tokens", tokens, "last_refill", last_refill)
+redis.call("EXPIRE", key, 3600)
+
+return allowed
+
+✅ This script ensures atomic update, even with multiple distributed servers calling Redis simultaneously.
+
+2.3 Java Service to Call Lua Script
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.stereotype.Service;
+
+import java.time.Instant;
+import java.util.Collections;
+
+@Service
+public class DistributedTokenBucketService {
+
+    private final RedisTemplate<String, Object> redisTemplate;
+
+    public DistributedTokenBucketService(RedisTemplate<String, Object> redisTemplate) {
+        this.redisTemplate = redisTemplate;
+    }
+
+    private static final String LUA_SCRIPT = """
+        local key = KEYS[1]
+        local capacity = tonumber(ARGV[1])
+        local refill_rate = tonumber(ARGV[2])
+        local now = tonumber(ARGV[3])
+        local bucket = redis.call("HMGET", key, "tokens", "last_refill")
+        local tokens = tonumber(bucket[1]) or capacity
+        local last_refill = tonumber(bucket[2]) or now
+        local delta = math.floor((now - last_refill) * refill_rate)
+        tokens = math.min(capacity, tokens + delta)
+        last_refill = now
+        local allowed = 0
+        if tokens > 0 then
+            tokens = tokens - 1
+            allowed = 1
+        end
+        redis.call("HMSET", key, "tokens", tokens, "last_refill", last_refill)
+        redis.call("EXPIRE", key, 3600)
+        return allowed
+        """;
+
+    public boolean allowRequest(String userId, int capacity, int refillRate) {
+        DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>();
+        redisScript.setScriptText(LUA_SCRIPT);
+        redisScript.setResultType(Long.class);
+
+        Long result = redisTemplate.execute(
+                redisScript,
+                Collections.singletonList("token_bucket:" + userId),
+                String.valueOf(capacity),
+                String.valueOf(refillRate),
+                String.valueOf(Instant.now().getEpochSecond())
+        );
+
+        return result != null && result == 1;
+    }
+}
+2.4 Usage in Controller
+@RestController
+public class ApiController {
+
+    private final DistributedTokenBucketService tokenBucketService;
+
+    public ApiController(DistributedTokenBucketService tokenBucketService) {
+        this.tokenBucketService = tokenBucketService;
+    }
+
+    @GetMapping("/api/data")
+    public ResponseEntity<String> getData(@RequestParam String userId) {
+        boolean allowed = tokenBucketService.allowRequest(userId, 5, 1); // capacity=5, refill=1/sec
+
+        if (!allowed) {
+            return ResponseEntity.status(429).body("Too Many Requests");
+        }
+
+        return ResponseEntity.ok("Success: API data returned");
+    }
+}
+✅ Advantages of This Approach
+
+Distributed-safe: multiple app instances share the same bucket
+
+Atomic operations: Lua script ensures thread-safe updates
+
+Burst handling: allows bursts up to bucket capacity
+
+Highly scalable: ideal for banking, trading, or ride-hailing systems
+
+Customizable: bucket size and refill rate per user or API key
+
+Real-World Example
+
+Uber: Rate limits rides API per user/device
+
+Twitter: API rate limiting for tweets, DMs, timeline access
+
+Banking APIs: Limit fund transfers, login attempts, dashboard refresh
+
+🎯 Interview Answer
+
+A distributed token bucket using Redis ensures consistent rate limiting across multiple servers.
+ Each user has a token bucket stored in Redis. Requests consume tokens via an atomic Lua script.
+ If no tokens remain, requests are rejected.
+ This allows bursts while controlling long-term request rates and is used in production systems like banking APIs, Uber, and Twitter.

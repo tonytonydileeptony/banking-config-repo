@@ -6,17 +6,36 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
+      </profile>
+      <profile name="Annotation profile for banking-system" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.30/lombok-1.18.30.jar" />
+          <entry name="$MAVEN_REPOSITORY$/org/mapstruct/mapstruct-processor/1.5.5.Final/mapstruct-processor-1.5.5.Final.jar" />
+        </processorPath>
+        <module name="bank-common" />
         <module name="config-server" />
+        <module name="discovery-server" />
+        <module name="auth-server" />
+        <module name="transcation-service" />
+        <module name="api-gateway" />
+        <module name="notification-service" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel>
-      <module name="banking-system" target="17" />
-    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
-      <module name="banking-system" options="-parameters" />
-      <module name="config-server" options="-parameters" />
+      <module name="account-service" options="-parameters -parameters" />
+      <module name="api-gateway" options="-parameters -parameters" />
+      <module name="auth-server" options="-parameters -parameters" />
+      <module name="bank-common" options="-parameters -parameters" />
+      <module name="banking-system" options="-parameters -parameters" />
+      <module name="config-server" options="-parameters -parameters" />
+      <module name="discovery-server" options="-parameters -parameters" />
+      <module name="notification-service" options="-parameters -parameters" />
+      <module name="transcation-service" options="-parameters -parameters" />
     </option>
   </component>
 </project>

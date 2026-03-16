@@ -1,0 +1,404 @@
+For a production microservices system, configuration should not be stored inside each service. Instead, we use a centralized configuration server. In Spring ecosystem this is done using Spring Cloud Config.
+
+You already learned Service Discovery with Netflix Eureka in Day 33. Config Server is the next step to make your architecture production-ready.
+
+Day 35 – Config Server (Centralized Configuration)
+1️⃣ Problem Without Config Server
+
+Suppose you have 5 services:
+
+Account Service
+Transaction Service
+Notification Service
+Auth Service
+API Gateway
+
+Each service has its own application.yml.
+
+Problems:
+
+Config duplication
+
+Hard to update database URLs
+
+Restart every service for changes
+
+Difficult environment management
+
+Example:
+
+account-service → db.url
+transaction-service → db.url
+notification-service → db.url
+
+Updating DB credentials means changing multiple services.
+
+2️⃣ Solution – Config Server
+
+Architecture:
+
+                +-------------------+
+                |   Config Server   |
+                | (Central Config)  |
+                +---------+---------+
+                          |
+                          v
+                    Git Repository
+                          |
+      ------------------------------------------------
+      |                    |                         |
+      v                    v                         v
+Account Service     Transaction Service     Notification Service
+
+Config Server reads configuration from Git repository.
+
+3️⃣ Advantages
+
+✔ Centralized configuration
+✔ Environment based configs (dev, qa, prod)
+✔ No need to rebuild services
+✔ Dynamic refresh
+✔ Version control with Git
+
+4️⃣ Step 1 – Create Config Server
+
+Create a Spring Boot project with dependency:
+
+Spring Cloud Config Server
+
+Main class:
+
+@SpringBootApplication
+@EnableConfigServer
+public class ConfigServerApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(ConfigServerApplication.class, args);
+    }
+}
+5️⃣ application.yml (Config Server)
+server:
+  port: 8888
+
+spring:
+  cloud:
+    config:
+      server:
+        git:
+          uri: https://github.com/your-org/config-repo
+
+This server will read configuration files from Git.
+
+6️⃣ Config Repository Structure
+
+Example Git repo:
+
+config-repo
+│
+├── account-service.yml
+├── transaction-service.yml
+├── notification-service.yml
+└── application.yml
+
+Example:
+
+account-service.yml
+
+server:
+  port: 8081
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/accountdb
+    username: root
+    password: root
+7️⃣ Step 2 – Configure Microservice
+
+Add dependency:
+
+Spring Cloud Config Client
+
+Then create:
+
+bootstrap.yml
+
+spring:
+  application:
+    name: account-service
+
+  cloud:
+    config:
+      uri: http://localhost:8888
+
+Now when service starts:
+
+Account Service → Config Server → Git Repo
+8️⃣ Config Fetch URL
+
+Example:
+
+http://localhost:8888/account-service/default
+
+Response:
+
+account-service.yml configuration
+9️⃣ Dynamic Config Refresh
+
+If config changes in Git, services can refresh using Spring Boot Actuator.
+
+Endpoint:
+
+POST /actuator/refresh
+
+Then service loads new configuration without restart.
+
+🔟 Full Production Architecture So Far
+
+Your architecture now becomes:
+
+                    Client
+                      |
+                      v
+                API Gateway
+                      |
+                      v
+                Eureka Server
+                      |
+      -------------------------------------------------
+      |                |                 |             |
+      v                v                 v             v
+ Account Service  Transaction Service  Auth Service  Notification Service
+      |
+      v
+   Config Server
+      |
+      v
+   Git Repository
+1️⃣1️⃣ Interview Questions
+What is Config Server?
+
+Config Server provides centralized configuration management for distributed systems.
+
+Why store configs in Git?
+
+Version control
+
+Rollback capability
+
+Easy environment management
+
+What is bootstrap.yml?
+
+bootstrap.yml loads before application.yml to fetch configuration from Config Server.
+
+1️⃣2️⃣ Next Step for Your Banking Microservices
+
+Next important production components:
+
+Basic Concept Questions
+1. What problem does a Config Server solve in microservices?
+
+Expected answer:
+
+In microservices, managing configuration separately for each service becomes difficult. Config Server centralizes configuration, allows version control, environment-based configs, and dynamic refresh without redeploying services.
+
+2. How does Config Server fetch configuration?
+
+Expected answer:
+
+Service → Config Server → Git Repository
+
+The config server pulls configuration from Git and exposes it through REST endpoints.
+
+3. Why do we use Git for configuration?
+
+Reasons:
+
+Version control
+
+Rollback capability
+
+Audit history
+
+Environment branches (dev / qa / prod)
+
+2️⃣ Architecture Questions
+4. Explain the startup flow of a microservice using Config Server.
+
+Answer flow:
+
+Service Startup
+       ↓
+bootstrap.yml loads
+       ↓
+Call Config Server
+       ↓
+Config Server fetches config from Git
+       ↓
+Configuration injected into service
+5. What is the role of bootstrap.yml?
+
+bootstrap.yml loads before application.yml and is used to connect to Config Server.
+
+Example:
+
+spring:
+  application:
+    name: account-service
+  cloud:
+    config:
+      uri: http://localhost:8888
+3️⃣ Advanced Production Questions
+6. What happens if Config Server goes down?
+
+Good answer:
+
+Services continue running with cached configuration
+
+Only new service startup fails
+
+Config refresh will fail
+
+Production solutions:
+
+Multiple config servers
+
+Load balancer
+
+Kubernetes config management
+
+7. How do you refresh configuration without restarting services?
+
+Using Spring Boot Actuator
+
+Endpoint:
+
+POST /actuator/refresh
+
+Or using Spring Cloud Bus with Kafka.
+
+8. What is Spring Cloud Bus?
+
+It broadcasts config refresh events to all services.
+
+Example:
+
+Config Change
+     ↓
+Config Server
+     ↓
+Spring Cloud Bus
+     ↓
+All Microservices refresh configuration
+
+Uses messaging tools like Apache Kafka.
+
+4️⃣ Real Banking Scenario Questions
+9. How would you manage configurations for multiple environments?
+
+Example structure:
+
+application.yml
+account-service.yml
+account-service-dev.yml
+account-service-prod.yml
+
+Profiles:
+
+spring.profiles.active=prod
+10. How do you secure Config Server?
+
+Solutions:
+
+Basic authentication
+
+OAuth2
+
+Vault integration
+
+Encrypt sensitive values
+
+Example encryption:
+
+{cipher}encrypted-password
+5️⃣ Failure Handling Questions
+11. What happens if Git repository is unavailable?
+
+Answer:
+
+Config Server serves cached configuration
+
+But new changes cannot be fetched
+
+Production fix:
+
+Git replication
+
+Backup repository
+
+12. How do you encrypt database passwords in Config Server?
+
+Using encryption support in Spring Cloud Config.
+
+Example:
+
+{cipher}AHDHFAHDKAHFKS
+
+Config Server decrypts before sending to services.
+
+6️⃣ Architecture Design Question (Very Common)
+
+Design centralized configuration for a banking microservice system.
+
+Expected architecture:
+
+                    Config Server
+                         |
+                         v
+                      Git Repo
+                         |
+        -------------------------------------
+        |             |           |         |
+        v             v           v         v
+ Account Service  Transaction  Auth     Notification
+     Service       Service     Service     Service
+
+All services fetch configuration from the central server.
+
+7️⃣ GS-Level Follow-Up Question
+
+How is Config Server different from Kubernetes ConfigMap?
+
+Feature	Config Server	Kubernetes ConfigMap
+Storage	Git	Kubernetes
+Versioning	Yes	Limited
+Refresh	Actuator / Bus	Pod restart
+Encryption	Built-in	External tools
+8️⃣ Very Advanced Question
+
+How do you implement dynamic configuration refresh in production?
+
+Solution:
+
+Git commit
+     ↓
+Config Server
+     ↓
+Spring Cloud Bus
+     ↓
+Kafka
+     ↓
+All services refresh configs
+9️⃣ One Real GS Interview Question
+
+Your database password changed in production.
+You have 20 microservices running.
+How will you update configuration without downtime?
+
+Expected answer:
+
+Update Git config repo
+
+Trigger refresh using Spring Cloud Bus
+
+All services reload config dynamically

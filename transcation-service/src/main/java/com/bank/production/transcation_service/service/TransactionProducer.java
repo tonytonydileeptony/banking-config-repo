@@ -1,10 +1,10 @@
 package com.bank.production.transcation_service.service;
 
-import com.bank.production.transcation_service.dto.TransactionEvent;
+import com.bank.production.dto.Status;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
-
+import com.bank.production.dto.TransactionEvent;
 @Service
 public class TransactionProducer {
 

@@ -1,0 +1,371 @@
+Day 33 – Eureka Service Discovery
+1️⃣ What Problem Eureka Solves
+
+Without Service Discovery:
+
+Transaction Service → http://localhost:8081/account
+Notification Service → http://localhost:8082/send
+
+Problems:
+
+If port changes → system breaks
+
+If service scales → difficult to manage
+
+Hardcoded URLs
+
+Solution → Service Discovery
+
+Transaction Service → ACCOUNT-SERVICE
+Notification Service → NOTIFICATION-SERVICE
+
+Eureka keeps registry of services.
+What Problem Eureka Solves
+
+Context:
+In a microservices architecture, multiple services (Payment, Loan, Fraud Detection, Notification, etc.) run independently and often on dynamic infrastructure like cloud or Kubernetes.
+
+Problem:
+
+Service Discovery Challenge:
+
+Services need to find and communicate with each other.
+
+IP addresses and ports can change dynamically due to scaling, container restarts, or cloud deployments.
+
+Hard-Coded Endpoints:
+
+Without a discovery mechanism, every service must know the exact location of other services.
+
+Leads to tight coupling and deployment rigidity.
+
+Load Balancing Complexity:
+
+Manually routing requests to multiple service instances is complex.
+
+Fault Tolerance & Scalability:
+
+If a service instance fails, clients must be able to redirect traffic to healthy instances automatically.
+
+Eureka Solves These Problems:
+
+Dynamic Service Registry:
+
+Services register themselves with Eureka upon startup.
+
+Eureka keeps track of all available service instances.
+
+Service Discovery:
+
+Client services query Eureka to find endpoints of other services.
+
+No need for hard-coded IPs or hostnames.
+
+Load Balancing:
+
+Multiple instances of a service can be discovered and used with round-robin or custom load balancing.
+
+Fault Tolerance:
+
+If an instance goes down, Eureka removes it from the registry, so clients don’t send requests to it.
+
+Banking Example
+Scenario	Without Eureka	With Eureka
+Payment Service needs Fraud Detection Service	Hard-code Fraud service IP → fails if instance restarts or scales	Payment Service queries Eureka → automatically gets active instance(s)
+Loan Service calls Credit Bureau API (internal microservice)	Must manually update endpoints when scaling	Eureka keeps registry updated → auto-discovery
+High-volume fund transfers during salary day	Manual load balancing → risk of overload	Eureka + Ribbon load balancing → traffic distributed across multiple Payment Service instances
+GS-Level Summary Statement
+
+"Eureka solves the problem of dynamic service discovery, load balancing, and fault tolerance in microservices. In banking, it ensures that services like Payment, Loan, Fraud Detection, and Notification can find and communicate with each other dynamically, scale automatically, and maintain high availability without hard-coded endpoints."
+
+2️⃣ Microservices Architecture with Eureka
+                +------------------+
+                |   API Gateway    |
+                +--------+---------+
+                         |
+                         v
+               +------------------+
+               |   Eureka Server   |
+               | (Service Registry)|
+               +---------+---------+
+                         |
+      ---------------------------------------------
+      |                    |                     |
+      v                    v                     v
++-------------+     +-------------+     +-------------+
+| Account     |     | Transaction |     | Notification|
+| Service     |     | Service     |     | Service     |
++-------------+     +-------------+     +-------------+
+
+All services register themselves in Eureka.
+Microservices Architecture with Eureka – GS-Level
+
+Context:
+In banking microservices (Payments, Loan, Fraud Detection, Notifications, ATM services), multiple services must communicate reliably and scale independently. Eureka provides service registration and discovery to make this possible.
+
+1️⃣ Architecture Overview
+Components
+
+Eureka Server (Service Registry)
+
+Central registry where all microservices register themselves.
+
+Maintains a dynamic list of available service instances.
+
+Health checks remove failed instances automatically.
+
+Eureka Clients (Service Providers & Consumers)
+
+Service Providers register themselves with Eureka.
+
+Example: Payment Service registers /transfer endpoint.
+
+Service Consumers query Eureka to find instances of a required service.
+
+Example: Notification Service queries Payment Service to fetch transaction events.
+
+Load Balancing & Fault Tolerance
+
+Eureka enables clients to pick among multiple instances.
+
+Works with Ribbon, Spring Cloud LoadBalancer, or other load balancers.
+
+2️⃣ Communication Flow in Banking Example
+
+Service Registration
+
+Payment Service starts → registers itself with Eureka Server.
+
+Loan Service starts → registers itself with Eureka Server.
+
+Service Discovery
+
+Notification Service needs to send alerts → queries Eureka for active Payment Service instances.
+
+Load Balancing & Fault Handling
+
+Multiple Payment Service instances available → request routed via round-robin.
+
+If an instance fails → Eureka removes it → clients automatically route to healthy instances.
+
+3️⃣ Banking Example Architecture
+                 +----------------+
+                 |  Eureka Server |
+                 +----------------+
+                       ^
+          Registration / Discovery
+                       |
++----------------+     +----------------+     +----------------+
+| Payment Service|     | Loan Service   |     | Fraud Service  |
+| (Provider)    |     | (Provider)     |     | (Provider)     |
++----------------+     +----------------+     +----------------+
+          ^                       ^                       ^
+          |                       |                       |
+     Queries via Eureka       Queries via Eureka      Queries via Eureka
+          |                       |                       |
++----------------+     +----------------+     +----------------+
+| Notification   |     | Analytics      |     | ATM Service     |
+| Service        |     | Service        |     | (Consumers)    |
++----------------+     +----------------+     +----------------+
+
+Flow Example:
+
+User initiates fund transfer.
+
+Payment Service calls Fraud Detection Service via Eureka discovery.
+
+Payment Service emits PaymentCompleted event → Notification Service asynchronously processes it.
+
+Loan Service may be triggered for overdraft checks → discovered via Eureka.
+
+4️⃣ Benefits of Eureka in Banking Microservices
+Benefit	Banking Impact
+Dynamic Service Discovery	No hard-coded endpoints; Payment Service finds Fraud or Notification services automatically
+Fault Tolerance	Failed services automatically removed; prevents cascading failures
+Load Balancing	Requests distributed across multiple instances during peak hours (e.g., salary day)
+Faster Scaling	Auto-register new instances → scale Payment or ATM services independently
+Reduced Operational Overhead	Easier deployments; no manual endpoint updates
+GS-Level Summary Statement
+
+"In a banking microservices architecture, Eureka acts as a dynamic service registry that enables Payment,
+Loan, Fraud Detection, Notification, and ATM services to register, discover, and communicate with each other reliably.
+It supports load balancing, fault tolerance, and independent scaling,
+ensuring high availability during peak transaction loads and simplifying operations."
+3️⃣ Step 1 – Create Eureka Server
+
+Create a Spring Boot project.
+
+Dependencies:
+
+Spring Web
+Eureka Server
+
+Main class:
+
+@SpringBootApplication
+@EnableEurekaServer
+public class DiscoveryServerApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(DiscoveryServerApplication.class, args);
+    }
+}
+4️⃣ application.yml (Eureka Server)
+server:
+  port: 8761
+
+eureka:
+  client:
+    register-with-eureka: false
+    fetch-registry: false
+
+Run application.
+
+Open:
+
+http://localhost:8761
+
+You will see Eureka Dashboard.
+
+5️⃣ Step 2 – Register Microservice to Eureka
+
+Example: Account Service
+
+Dependency:
+
+Spring Cloud Eureka Client
+
+Main class:
+
+@SpringBootApplication
+@EnableDiscoveryClient
+public class AccountServiceApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(AccountServiceApplication.class, args);
+    }
+}
+6️⃣ application.yml (Client Service)
+spring:
+  application:
+    name: ACCOUNT-SERVICE
+
+server:
+  port: 8081
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+
+Now run the service.
+
+Dashboard:
+
+ACCOUNT-SERVICE → UP
+7️⃣ Multiple Instances (Load Balancing)
+
+Run another instance:
+
+ACCOUNT-SERVICE : 8081
+ACCOUNT-SERVICE : 8082
+
+Eureka will show:
+
+ACCOUNT-SERVICE (2 instances)
+8️⃣ Calling Service using Service Name
+
+Example:
+
+TRANSACTION-SERVICE → ACCOUNT-SERVICE
+
+Using Spring Cloud OpenFeign:
+
+@FeignClient(name = "ACCOUNT-SERVICE")
+public interface AccountClient {
+
+    @GetMapping("/accounts/{id}")
+    Account getAccount(@PathVariable Long id);
+}
+
+Now request goes through Eureka registry.
+
+9️⃣ Service Discovery Flow
+1 Client calls API Gateway
+2 Gateway asks Eureka for service location
+3 Eureka returns service instance
+4 Request routed to service
+🔟 Production Architecture
+Client
+   ↓
+API Gateway
+   ↓
+Service Discovery (Eureka)
+   ↓
+Account Service
+Transaction Service
+Notification Service
+Auth Service
+
+Used with:
+
+Feign Client
+
+Circuit Breaker
+
+Load Balancer
+
+Config Server
+
+1️⃣1️⃣ Common Interview Questions
+What is Service Discovery?
+
+A mechanism that allows microservices to dynamically locate and communicate with each other without hardcoding hostnames and ports.
+
+Types of Service Discovery
+
+Client-side discovery (Eureka)
+
+Server-side discovery (Kubernetes)
+
+What happens if Eureka Server goes down?
+
+Clients use cached registry for some time.
+
+1️⃣2️⃣ Next Step in Your Microservices Journey
+
+After Eureka, next production components:
+
+Day 34
+
+➡ API Gateway
+
+Using Spring Cloud Gateway
+
+Features:
+
+Routing
+
+Authentication
+
+Rate limiting
+
+Logging
+
+✅ If you want, I can also show the complete production banking microservices architecture (used in fintech companies) with:
+
+Eureka
+
+API Gateway
+
+Kafka
+
+Redis
+
+Circuit Breaker
+
+Observability
+
+Docker
+
+Kubernetes

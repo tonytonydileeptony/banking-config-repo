@@ -1,0 +1,1502 @@
+Since you’re preparing for high-level backend roles (like Goldman Sachs), understanding async processing with CompletableFuture is very important. It’s used in high-performance systems, microservices, and AI/ML API integrations where blocking threads is expensive.
+
+Let’s go step-by-step with real-world situations.
+
+Day 22 — CompletableFuture / Async Processing
+1️⃣ Why Async Processing Is Needed
+Problem with synchronous code
+
+Example: Banking system transferring money.
+
+Account account = accountService.getAccount(id);
+FraudCheck fraud = fraudService.check(account);
+Notification.send(account);
+
+Each call waits for the previous one.
+
+If each call takes:
+
+DB → 200 ms
+
+Fraud API → 500 ms
+
+Notification → 300 ms
+
+Total = 1000 ms
+
+Async Solution
+
+Run independent tasks in parallel.
+
+CompletableFuture<Account> accountFuture =
+        CompletableFuture.supplyAsync(() -> accountService.getAccount(id));
+
+CompletableFuture<FraudCheck> fraudFuture =
+        CompletableFuture.supplyAsync(() -> fraudService.check(id));
+
+Now both run simultaneously.
+
+Total time ≈ 500 ms instead of 1000 ms.
+Asynchronous processing means tasks run without blocking the main thread, allowing other work to continue while waiting for slow operations (like I/O).
+
+Key Reasons:
+
+Better Performance ⚡
+
+The system can process multiple tasks concurrently instead of waiting for each task to finish.
+
+Example: Web servers handling thousands of requests simultaneously.
+
+Improved User Experience 🙂
+
+Applications stay responsive.
+
+Example: In a mobile app, data loads in the background while the UI remains usable.
+
+Efficient Resource Utilization 🧠
+
+CPU doesn’t stay idle while waiting for slow operations like database queries, file reads, or API calls.
+
+Scalability 📈
+
+Systems can handle many users or tasks at the same time.
+
+Used in microservices, messaging systems, and distributed architectures.
+
+Handling Long-Running Tasks ⏳
+
+Tasks like sending emails, video processing, report generation run in the background.
+
+Example tools: message queues, background workers.
+
+2️⃣ Example Scenario
+
+Imagine an e-commerce checkout system:
+
+Without async:
+
+Place order
+
+Process payment
+
+Send email
+
+Update inventory
+
+User waits until everything finishes ❌
+
+With async:
+
+Place order
+
+Process payment
+
+Send email & inventory update in background
+
+User gets response quickly ✅
+
+3️⃣ What Interviewers Expect in an Answer
+
+A good interview answer usually includes:
+
+✔ Definition of async processing
+✔ Problem with synchronous/blocking operations
+✔ Real-world examples
+✔ Benefits (performance, scalability, responsiveness)
+✔ Optional: tools/technologies (queues, threads, event loops)
+
+Short interview answer (best format):
+
+Async processing allows a system to perform tasks without blocking the main execution thread. It is mainly used when operations like database calls, API requests, or file I/O take time. Instead of waiting, the system can handle other tasks concurrently. This improves performance, scalability, and user experience. Common examples include sending emails, processing payments, and handling web requests in modern web servers.
+
+✅ If you want, I can also show:
+
+Async processing examples in Java / Python / Node.js
+
+Real system design interview answer (Amazon / Microsoft style).
+
+java'
+Async Processing in Java ☕
+
+In Java, asynchronous processing allows tasks to run in the background without blocking the main thread. This is commonly used for API calls, database operations, file processing, and sending emails.
+
+1️⃣ Using Threads
+
+The simplest way is creating a new thread.
+
+class AsyncExample {
+    public static void main(String[] args) {
+
+        System.out.println("Main thread started");
+
+        Thread thread = new Thread(() -> {
+            System.out.println("Background task running...");
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            System.out.println("Background task finished");
+        });
+
+        thread.start();
+
+        System.out.println("Main thread continues...");
+    }
+}
+
+Explanation:
+
+thread.start() runs the task asynchronously
+
+The main thread continues without waiting.
+
+2️⃣ Using ExecutorService (Most Common in Interviews) ⭐
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+public class AsyncExecutorExample {
+    public static void main(String[] args) {
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        executor.submit(() -> {
+            System.out.println("Task running in background...");
+        });
+
+        System.out.println("Main thread continues...");
+
+        executor.shutdown();
+    }
+}
+
+Advantages:
+
+Thread pool management
+
+Better performance
+
+Used in production systems
+
+3️⃣ Using CompletableFuture (Modern Java – Java 8+) 🚀
+import java.util.concurrent.CompletableFuture;
+
+public class AsyncCompletableFuture {
+    public static void main(String[] args) {
+
+        CompletableFuture.runAsync(() -> {
+            System.out.println("Running async task...");
+        });
+
+        System.out.println("Main thread continues...");
+    }
+}
+
+With result:
+
+CompletableFuture.supplyAsync(() -> {
+    return "Hello from async task";
+}).thenAccept(result -> {
+    System.out.println(result);
+});
+
+Why interviewers like this:
+
+Non-blocking
+
+Supports chaining
+
+Handles async pipelines
+
+4️⃣ Real-World Example (Spring Boot) 🌐
+@Async
+public void sendEmail() {
+    System.out.println("Sending email in background...");
+}
+
+Enable async:
+
+@EnableAsync
+
+Used for:
+
+Email sending
+
+Report generation
+
+Notifications
+
+Background jobs
+
+✅ Best Interview Answer (Java):
+
+In Java, asynchronous processing allows tasks to run without blocking the main thread.
+ It improves application performance and responsiveness, especially for I/O operations
+ like API calls or database queries. Java supports async processing using Threads, ExecutorService,
+ and CompletableFuture. In modern Java applications, CompletableFuture and thread pools are commonly
+ used because they provide better scalability and control over concurrent tasks.
+
+2️⃣ What is CompletableFuture
+
+CompletableFuture is a class in Java that allows:
+
+asynchronous computation
+
+non-blocking execution
+
+chaining tasks
+
+combining multiple async tasks
+
+It belongs to java.util.concurrent.
+CompletableFuture is a class in Java (introduced in Java 8) used for asynchronous programming. It allows you to run tasks in the background and handle their results without blocking the main thread.
+
+It belongs to the package:
+
+java.util.concurrent
+1️⃣ Simple Definition (Interview Style) 🎯
+
+CompletableFuture is a Java class used to perform asynchronous, non-blocking tasks and allows chaining multiple operations that run after the task completes.
+
+2️⃣ Why CompletableFuture is Used 🚀
+
+Main reasons:
+
+Non-blocking execution
+
+Run tasks asynchronously
+
+Chain multiple tasks
+
+Combine multiple async results
+
+Better error handling
+
+3️⃣ Simple Example
+import java.util.concurrent.CompletableFuture;
+
+public class Example {
+    public static void main(String[] args) {
+
+        CompletableFuture.runAsync(() -> {
+            System.out.println("Task running asynchronously");
+        });
+
+        System.out.println("Main thread continues...");
+    }
+}
+
+Output flow:
+
+Main thread continues...
+Task running asynchronously
+
+The main thread does not wait for the task.
+
+4️⃣ Returning a Value
+import java.util.concurrent.CompletableFuture;
+
+public class Example {
+    public static void main(String[] args) {
+
+        CompletableFuture<String> future =
+            CompletableFuture.supplyAsync(() -> "Hello from async task");
+
+        future.thenAccept(result -> System.out.println(result));
+    }
+}
+
+Explanation:
+
+supplyAsync() → runs task asynchronously
+
+thenAccept() → processes the result
+
+5️⃣ Chaining Tasks 🔗
+
+One task can run after another.
+
+CompletableFuture.supplyAsync(() -> "Hello")
+        .thenApply(result -> result + " Java")
+        .thenAccept(System.out::println);
+
+Output:
+
+Hello Java
+6️⃣ Real-World Use Cases 🌍
+
+Used in applications like:
+
+Calling multiple APIs
+
+Database queries
+
+Microservices communication
+
+Background processing
+
+Parallel data processing
+
+Example flow:
+
+User Request
+     ↓
+Call API 1 (async)
+Call API 2 (async)
+Call API 3 (async)
+     ↓
+Combine results
+     ↓
+Send response
+7️⃣ Why It’s Better Than Future ⭐
+Feature	Future	CompletableFuture
+Non-blocking	❌	✅
+Chaining tasks	❌	✅
+Combine multiple tasks	❌	✅
+Better error handling	❌	✅
+
+✅ Best Interview Answer (Short):
+
+CompletableFuture is a class in Java used for asynchronous programming. It allows tasks to run in the background without blocking the main thread. It also supports chaining, combining multiple async tasks, and handling results when the computation completes.
+
+If you're preparing for Java interviews, the next very commonly asked question is:
+
+3️⃣ Difference between Future and CompletableFuture
+I can explain it in a simple 30-second interview answer if you want.
+
+3️⃣ Creating Async Tasks
+runAsync() (no return value)
+CompletableFuture.runAsync(() -> {
+    System.out.println("Processing...");
+});
+
+Used when you don't need a result.
+
+Example:
+
+sending email
+
+logging
+
+notifications
+
+supplyAsync() (returns value)
+CompletableFuture<String> future =
+        CompletableFuture.supplyAsync(() -> "Hello AI");
+
+Get result:
+
+String result = future.get();
+In Java, async tasks can be created using methods provided by CompletableFuture. The two most common methods are:
+
+runAsync() → when no result is returned
+
+supplyAsync() → when a result is returned
+
+1️⃣ Using runAsync() (No Return Value)
+
+Use this when the task does not return any result.
+
+import java.util.concurrent.CompletableFuture;
+
+public class AsyncRunExample {
+    public static void main(String[] args) {
+
+        CompletableFuture.runAsync(() -> {
+            System.out.println("Async task running...");
+        });
+
+        System.out.println("Main thread continues...");
+    }
+}
+
+✅ Explanation:
+
+runAsync() executes the task in a separate thread
+
+It returns CompletableFuture<Void>
+
+2️⃣ Using supplyAsync() (Returns Result)
+
+Use this when the task returns a value.
+
+import java.util.concurrent.CompletableFuture;
+
+public class AsyncSupplyExample {
+    public static void main(String[] args) {
+
+        CompletableFuture<String> future =
+            CompletableFuture.supplyAsync(() -> {
+                return "Hello from async task";
+            });
+
+        future.thenAccept(result -> System.out.println(result));
+    }
+}
+
+✅ Explanation:
+
+supplyAsync() runs the task asynchronously
+
+Returns CompletableFuture<T>
+
+thenAccept() consumes the result
+
+3️⃣ Using Custom Thread Pool (Best Practice) ⭐
+
+Instead of the default thread pool, you can use ExecutorService.
+
+import java.util.concurrent.*;
+
+public class AsyncExecutorExample {
+
+    public static void main(String[] args) {
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        CompletableFuture.runAsync(() -> {
+            System.out.println("Running async task...");
+        }, executor);
+
+        executor.shutdown();
+    }
+}
+
+✅ Why this is used:
+
+Better thread control
+
+Prevents overuse of the common thread pool
+
+Used in production systems
+
+4️⃣ Real-World Example 🌍
+
+Example: Fetching user data from service
+
+CompletableFuture<String> userFuture =
+    CompletableFuture.supplyAsync(() -> getUserData());
+
+userFuture.thenAccept(user -> {
+    System.out.println("User data: " + user);
+});
+
+Flow:
+
+User Request
+   ↓
+Async Task Created
+   ↓
+Background Thread Executes
+   ↓
+Result Processed
+
+✅ Short Interview Answer (Best Way):
+
+Async tasks in Java can be created using CompletableFuture methods like runAsync() for tasks without return values and supplyAsync() for tasks that return results. These methods execute tasks in separate threads without blocking the main thread, improving application performance and scalability.
+
+If you're studying Java Async for interviews, the next very important topic is:
+
+4️⃣ Chaining Async Tasks (thenApply, thenAccept, thenCompose)
+
+This is asked in Amazon, Infosys, TCS, and product company interviews. I can explain it with clear diagrams and examples.
+4️⃣ Chaining Async Operations
+
+Real systems often need multi-step async processing.
+
+thenApply()
+
+Transforms result.
+
+CompletableFuture<Integer> future =
+        CompletableFuture.supplyAsync(() -> 10)
+                .thenApply(x -> x * 2);
+
+System.out.println(future.get());
+
+Output:
+
+20
+thenAccept()
+
+Consumes result but returns nothing.
+
+CompletableFuture.supplyAsync(() -> "Transfer Completed")
+        .thenAccept(System.out::println);
+thenRun()
+
+Runs after completion but no input/output.
+
+CompletableFuture.runAsync(() -> process())
+        .thenRun(() -> System.out.println("Done"));
+5️⃣ Combining Multiple Async Tasks
+
+Real enterprise systems often need parallel services.
+
+Example: Load dashboard.
+
+We need:
+
+account info
+
+transactions
+
+loan details
+
+allOf()
+
+Wait for all tasks.
+
+CompletableFuture<Void> combined =
+        CompletableFuture.allOf(accountFuture, transactionFuture, loanFuture);
+
+combined.join();
+
+Used when all tasks must complete.
+
+anyOf()
+
+Returns when first task completes.
+
+Example:
+Query multiple services and take fastest response.
+Chaining means executing multiple asynchronous tasks in sequence, where the output of one task becomes the input for the next task.
+
+Java provides several methods for chaining:
+
+thenApply()
+
+thenAccept()
+
+thenRun()
+
+thenCompose()
+
+thenCombine()
+
+1️⃣ thenApply() – Transform the Result
+
+Used when you take the result of a previous task and return another value.
+
+Example
+import java.util.concurrent.CompletableFuture;
+
+public class ThenApplyExample {
+    public static void main(String[] args) {
+
+        CompletableFuture.supplyAsync(() -> "Hello")
+                .thenApply(result -> result + " Java")
+                .thenApply(result -> result + " Developer")
+                .thenAccept(System.out::println);
+    }
+}
+
+✅ Output
+
+Hello Java Developer
+
+Flow:
+
+Task1 → Task2 → Task3
+Hello → Hello Java → Hello Java Developer
+2️⃣ thenAccept() – Consume Result
+
+Used when you only want to use the result but not return anything.
+
+Example
+CompletableFuture.supplyAsync(() -> "User Data")
+        .thenAccept(data -> {
+            System.out.println("Processing: " + data);
+        });
+
+✔ Takes result
+✔ Returns void
+
+3️⃣ thenRun() – Run Another Task (No Result)
+
+Runs another task after completion, but does not use the result.
+
+CompletableFuture.supplyAsync(() -> "Task completed")
+        .thenRun(() -> {
+            System.out.println("Next task running");
+        });
+
+Flow:
+
+Task1 finished
+     ↓
+Task2 starts
+4️⃣ thenCompose() – Chain Dependent Async Tasks ⭐
+
+Used when one async task depends on another async task.
+
+Example:
+1️⃣ Get User
+2️⃣ Get Orders for that user
+
+CompletableFuture<String> future =
+        CompletableFuture.supplyAsync(() -> "User123")
+                .thenCompose(user ->
+                        CompletableFuture.supplyAsync(() -> "Orders for " + user)
+                );
+
+future.thenAccept(System.out::println);
+
+Output:
+
+Orders for User123
+5️⃣ thenCombine() – Combine Two Async Tasks 🔗
+
+Runs two independent async tasks and combines their results.
+
+CompletableFuture<String> future1 =
+        CompletableFuture.supplyAsync(() -> "Hello");
+
+CompletableFuture<String> future2 =
+        CompletableFuture.supplyAsync(() -> "Java");
+
+future1.thenCombine(future2,
+        (a, b) -> a + " " + b)
+        .thenAccept(System.out::println);
+
+Output:
+
+Hello Java
+📊 Quick Summary Table
+Method	Purpose
+thenApply()	Transform result
+thenAccept()	Consume result
+thenRun()	Run next task without result
+thenCompose()	Chain dependent async tasks
+thenCombine()	Combine two independent tasks
+🎯 30-Second Interview Answer
+
+In Java CompletableFuture, async tasks can be chained using methods like thenApply, thenAccept, and thenCompose.
+ These methods allow sequential execution of asynchronous operations.
+thenApply transforms the result, thenAccept consumes the result without returning a value,
+and thenCompose is used when one async task depends on another async task. This helps build non-blocking pipelines of tasks.
+
+6️⃣ Exception Handling
+
+Async code must handle failures properly.
+
+exceptionally()
+CompletableFuture.supplyAsync(() -> {
+    throw new RuntimeException("Error");
+})
+.exceptionally(ex -> {
+    System.out.println("Handled: " + ex.getMessage());
+    return "Fallback";
+});
+7️⃣ Custom Thread Pools (Important for Interviews)
+
+Default async uses ForkJoinPool.
+
+But production systems use custom executor.
+
+ExecutorService executor = Executors.newFixedThreadPool(10);
+
+CompletableFuture.supplyAsync(() -> {
+    return "Async task";
+}, executor);
+
+Why?
+
+control thread usage
+
+avoid overload
+When async tasks fail, exceptions occur in background threads.
+CompletableFuture provides methods to handle these errors without crashing the application.
+
+Common methods:
+
+exceptionally()
+
+handle()
+
+whenComplete()
+
+1️⃣ exceptionally() – Handle Exception and Return Default Value
+
+Used when you want to catch an exception and return a fallback result.
+
+import java.util.concurrent.CompletableFuture;
+
+public class ExceptionExample {
+    public static void main(String[] args) {
+
+        CompletableFuture<Integer> future =
+            CompletableFuture.supplyAsync(() -> 10 / 0)
+                .exceptionally(ex -> {
+                    System.out.println("Error: " + ex.getMessage());
+                    return 0;
+                });
+
+        System.out.println(future.join());
+    }
+}
+
+Output:
+
+Error: / by zero
+0
+
+✔ Handles exception
+✔ Returns default value
+
+2️⃣ handle() – Handle Both Success and Failure
+
+handle() executes whether the task succeeds or fails.
+
+CompletableFuture.supplyAsync(() -> 10 / 0)
+        .handle((result, ex) -> {
+            if (ex != null) {
+                System.out.println("Exception occurred");
+                return 0;
+            }
+            return result;
+        })
+        .thenAccept(System.out::println);
+
+✔ Works for both success and error cases
+
+3️⃣ whenComplete() – Execute After Completion
+
+Runs after task completion, but does not change the result.
+
+CompletableFuture.supplyAsync(() -> "Task completed")
+        .whenComplete((result, ex) -> {
+            if (ex == null) {
+                System.out.println("Result: " + result);
+            }
+        });
+
+✔ Used for logging or monitoring
+
+📊 Quick Comparison
+Method	Use Case
+exceptionally()	Return fallback value
+handle()	Handle success + error
+whenComplete()	Post-processing/logging
+6️⃣ Parallel API Calls using CompletableFuture 🚀
+
+This is a very common real-world backend scenario.
+
+Example:
+An application needs data from 3 microservices:
+
+User Service
+
+Order Service
+
+Payment Service
+
+Instead of calling them one by one, we call them in parallel.
+
+Example
+import java.util.concurrent.CompletableFuture;
+
+public class ParallelExample {
+
+    public static void main(String[] args) {
+
+        CompletableFuture<String> user =
+            CompletableFuture.supplyAsync(() -> "User Data");
+
+        CompletableFuture<String> orders =
+            CompletableFuture.supplyAsync(() -> "Order Data");
+
+        CompletableFuture<String> payments =
+            CompletableFuture.supplyAsync(() -> "Payment Data");
+
+        CompletableFuture.allOf(user, orders, payments).join();
+
+        System.out.println(user.join());
+        System.out.println(orders.join());
+        System.out.println(payments.join());
+    }
+}
+
+Flow:
+
+Request
+   ↓
+Call User Service   (async)
+Call Order Service  (async)
+Call Payment Service(async)
+   ↓
+Combine Results
+   ↓
+Send Response
+Why This Is Powerful ⭐
+
+Instead of:
+
+API1 → wait
+API2 → wait
+API3 → wait
+
+We do:
+
+API1
+API2   → run simultaneously
+API3
+
+✔ Faster response time
+✔ Better scalability
+✔ Common in microservices
+
+🎯 Perfect Interview Answer
+
+CompletableFuture supports exception handling using methods like exceptionally, handle, and whenComplete.
+ These allow asynchronous tasks to recover from errors or log failures.
+ It is also widely used for parallel API calls in microservices architecture,
+  where multiple services are invoked asynchronously and combined using methods like allOf or thenCombine.
+8️⃣ Real Banking Example
+
+Suppose we want to process a money transfer.
+
+Steps:
+
+Validate accounts
+
+Fraud check
+
+Update balances
+
+Send notification
+
+Fraud check and notification can run async.
+
+Example:
+
+CompletableFuture<Boolean> fraudCheck =
+        CompletableFuture.supplyAsync(() -> fraudService.checkTransfer());
+
+CompletableFuture.runAsync(() -> notificationService.send());
+
+fraudCheck.thenAccept(result -> {
+    if(result) {
+        transferService.execute();
+    }
+});
+
+This reduces system latency.
+8️⃣ Real Banking Example using CompletableFuture 🏦
+
+In banking systems, many services must be called when a user performs an operation.
+Using asynchronous processing, these services can run in parallel, improving response time.
+
+Example Scenario: Account Dashboard
+
+When a user opens their bank dashboard, the system needs:
+
+1️⃣ Account Balance
+2️⃣ Recent Transactions
+3️⃣ Loan Details
+4️⃣ Credit Card Information
+
+If we call them sequentially, it becomes slow.
+
+Sequential Flow (Slow)
+Get Balance → wait
+Get Transactions → wait
+Get Loan Info → wait
+Get Credit Card → wait
+
+Total time = Sum of all service times ❌
+
+Async Flow Using CompletableFuture ⚡
+
+All services run in parallel.
+
+Balance Service
+Transactions Service
+Loan Service
+Credit Card Service
+        ↓
+Combine Results
+        ↓
+Return Dashboard Response
+
+Total time = Maximum of service times ✅
+
+Java Example
+import java.util.concurrent.CompletableFuture;
+
+public class BankDashboard {
+
+    public static void main(String[] args) {
+
+        CompletableFuture<String> balance =
+                CompletableFuture.supplyAsync(() -> getBalance());
+
+        CompletableFuture<String> transactions =
+                CompletableFuture.supplyAsync(() -> getTransactions());
+
+        CompletableFuture<String> loans =
+                CompletableFuture.supplyAsync(() -> getLoanDetails());
+
+        CompletableFuture<String> creditCard =
+                CompletableFuture.supplyAsync(() -> getCreditCardInfo());
+
+        CompletableFuture.allOf(balance, transactions, loans, creditCard).join();
+
+        System.out.println(balance.join());
+        System.out.println(transactions.join());
+        System.out.println(loans.join());
+        System.out.println(creditCard.join());
+    }
+
+    static String getBalance() { return "Balance: ₹50,000"; }
+    static String getTransactions() { return "Last 5 Transactions"; }
+    static String getLoanDetails() { return "Loan: ₹2,00,000"; }
+    static String getCreditCardInfo() { return "Credit Card Limit: ₹1,00,000"; }
+}
+Real Microservice Architecture 🏗️
+
+In real banking applications:
+
+Mobile App
+    ↓
+API Gateway
+    ↓
+Account Service
+Transaction Service
+Loan Service
+Card Service
+    ↓
+Aggregator Service (CompletableFuture)
+    ↓
+Combined Response
+
+The Aggregator Service uses CompletableFuture to fetch data from multiple services.
+
+Why Banks Use Async Processing 💡
+
+✔ Faster API responses
+✔ Handle thousands of users
+✔ Efficient microservice communication
+✔ Non-blocking architecture
+✔ Better scalability
+
+30-Second Interview Answer 🎯
+
+In banking applications, CompletableFuture is used to call multiple services asynchronously.
+For example, when loading a user's banking dashboard, the system may fetch account balance, transactions,
+ loan details, and credit card information in parallel using supplyAsync.
+These results are combined using allOf or thenCombine, which significantly improves response time and scalability.
+
+9️⃣ Spring Boot Async Support
+
+Spring makes async easier.
+
+Enable async:
+
+@EnableAsync
+
+Service method:
+
+@Async
+public CompletableFuture<String> process() {
+    return CompletableFuture.completedFuture("Done");
+}
+
+Spring runs this in a separate thread.
+In Spring Boot, asynchronous processing is supported using the @Async annotation. It allows methods to run in a separate thread, so the main request thread does not wait for the task to complete.
+
+This improves performance, responsiveness, and scalability in backend applications.
+
+1️⃣ Enable Async Support
+
+First, enable async processing in your Spring Boot application.
+
+import org.springframework.scheduling.annotation.EnableAsync;
+
+@SpringBootApplication
+@EnableAsync
+public class Application {
+}
+
+@EnableAsync tells Spring to run methods marked with @Async in background threads.
+
+2️⃣ Create Async Service Method
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+
+@Service
+public class EmailService {
+
+    @Async
+    public void sendEmail() {
+        System.out.println("Sending email in background...");
+    }
+}
+
+When sendEmail() is called, it runs asynchronously.
+
+3️⃣ Calling the Async Method
+@RestController
+public class UserController {
+
+    @Autowired
+    private EmailService emailService;
+
+    @GetMapping("/register")
+    public String registerUser() {
+
+        emailService.sendEmail(); // async call
+
+        return "User registered successfully";
+    }
+}
+
+Flow:
+
+User Request
+     ↓
+Register User
+     ↓
+Return Response Immediately
+     ↓
+Send Email in Background
+
+User does not wait for the email task.
+
+4️⃣ Async Method Returning Result
+
+Async methods can return CompletableFuture.
+
+@Async
+public CompletableFuture<String> processPayment() {
+
+    String result = "Payment Processed";
+    return CompletableFuture.completedFuture(result);
+}
+
+Calling it:
+
+CompletableFuture<String> future = paymentService.processPayment();
+System.out.println(future.get());
+5️⃣ Custom Thread Pool (Best Practice) ⚙️
+
+Instead of the default thread pool, configure your own.
+
+@Configuration
+@EnableAsync
+public class AsyncConfig {
+
+    @Bean
+    public Executor taskExecutor() {
+
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(5);
+        executor.setMaxPoolSize(10);
+        executor.setQueueCapacity(100);
+        executor.initialize();
+
+        return executor;
+    }
+}
+
+Benefits:
+
+Better performance
+
+Prevents thread exhaustion
+
+Used in production systems
+
+Real Use Cases in Spring Boot 🌍
+
+Async is commonly used for:
+
+📧 Email sending
+
+📊 Report generation
+
+🔔 Notifications
+
+💳 Payment processing
+
+📦 Order processing
+
+Example flow:
+
+User places order
+      ↓
+Save order
+      ↓
+Return response
+      ↓
+Send email (Async)
+Update inventory (Async)
+Send notification (Async)
+🎯 30-Second Interview Answer
+
+Spring Boot supports asynchronous processing using the @Async annotation.
+ By enabling @EnableAsync, methods annotated with @Async run in a separate thread,
+ allowing the main request thread to return immediately.
+ This is commonly used for tasks like sending emails, notifications, and background processing.
+ Async methods can also return CompletableFuture for handling results asynchronously.
+🔟 Common Interview Questions
+Q1
+
+What is the difference between Future and CompletableFuture?
+
+Answer:
+
+Future	CompletableFuture
+blocking	non-blocking
+no chaining	supports chaining
+limited functionality	rich async APIs
+Q2
+
+What thread pool does CompletableFuture use?
+
+Default → ForkJoinPool.commonPool()
+
+Q3
+
+Difference between:
+
+thenApply
+
+thenAccept
+
+thenRun
+
+Method	Input	Output
+thenApply	yes	yes
+thenAccept	yes	no
+thenRun	no	no
+Real Use Cases in Industry
+
+Async processing is used in:
+
+payment processing
+
+fraud detection
+
+microservice orchestration
+
+notification systems
+
+AI API calls
+
+high throughput trading systems
+
+Small Practice Exercise
+
+Write async code to:
+
+Fetch account details
+
+Fetch transactions
+
+Fetch loan details
+
+Combine results into a dashboard.
+
+Hint:
+
+Use:
+
+CompletableFuture.allOf()
+
+Difference between @Async vs CompletableFuture vs Reactive Programming ⚙️
+
+In Java backend systems (especially with Spring Boot), there are three common ways to handle asynchronous or non-blocking operations:
+
+@Async
+
+CompletableFuture
+
+Project Reactor (Reactive Programming)
+
+They all help run tasks without blocking the main thread, but they work differently.
+
+1️⃣ @Async (Spring Boot Annotation)
+
+@Async is the simplest way to run a method in a background thread.
+
+Example
+@Async
+public void sendEmail() {
+    System.out.println("Sending email...");
+}
+Characteristics
+
+✅ Very easy to use
+✅ Runs method in separate thread
+❌ Limited control over async flow
+❌ Not ideal for complex async pipelines
+
+Best Use Cases
+
+Email sending 📧
+
+Notifications 🔔
+
+Logging
+
+Background jobs
+
+2️⃣ CompletableFuture (Java Async API)
+
+CompletableFuture is part of Java's concurrency library and allows advanced async pipelines.
+
+Example:
+
+CompletableFuture.supplyAsync(() -> getUser())
+        .thenApply(user -> getOrders(user))
+        .thenAccept(System.out::println);
+Characteristics
+
+✅ Supports task chaining
+✅ Combine multiple async calls
+✅ Exception handling
+⚠️ Still uses thread-based model
+
+Best Use Cases
+
+Parallel API calls
+
+Microservice aggregation
+
+Complex async workflows
+
+3️⃣ Reactive Programming (WebFlux / Reactor)
+
+Reactive programming uses event-driven, non-blocking streams instead of threads.
+
+In Spring reactive systems this is usually done with Project Reactor.
+
+Example:
+
+Mono<User> user = userService.getUser();
+user.flatMap(u -> orderService.getOrders(u))
+    .subscribe(System.out::println);
+Characteristics
+
+✅ Non-blocking architecture
+✅ Handles very high concurrency
+✅ Uses event loop instead of threads
+
+Best Use Cases
+
+High-traffic APIs
+
+Streaming systems
+
+Real-time applications
+
+📊 Comparison Table
+Feature	@Async	CompletableFuture	Reactive Programming
+Complexity	Very easy	Medium	Advanced
+Thread Model	Thread pool	Thread pool	Event loop
+Async chaining	Limited	Strong	Very powerful
+Scalability	Medium	High	Very High
+Use case	Background tasks	Async workflows	High concurrency systems
+🏦 Real Backend Scenario
+
+Example: Bank dashboard API
+
+System needs:
+
+Account details
+
+Transactions
+
+Loan data
+
+Using @Async
+
+Run background tasks like:
+
+Send email
+Generate report
+Using CompletableFuture
+Call Account Service
+Call Transaction Service
+Call Loan Service
+Combine results
+Using Reactive Programming
+High-traffic banking API
+Millions of concurrent users
+Non-blocking streaming responses
+🎯 Best Interview Answer (45 seconds)
+
+@Async, CompletableFuture, and Reactive Programming are three approaches for asynchronous processing in Java. @Async is a Spring Boot annotation used to execute methods in background threads and is suitable for simple tasks like sending emails. CompletableFuture is part of Java's concurrency API and supports advanced async workflows like chaining and combining multiple tasks. Reactive programming, implemented with libraries like Project Reactor, follows a non-blocking event-driven model and is designed for highly scalable systems handling thousands of concurrent requests.
+
+✅ Important Interview Tip
+
+Reactive programming is powerful, but it isn’t always the best choice. Use it only when the problem benefits from non-blocking, asynchronous streams.
+
+1️⃣ Low Concurrency / Simple Applications
+
+Small apps with few users or light traffic.
+
+Overhead of reactive libraries (Reactor/WebFlux) may increase complexity unnecessarily.
+
+Example:
+
+A small internal admin dashboard serving 50 users a day doesn’t need reactive streams.
+
+2️⃣ CPU-Bound Tasks
+
+Reactive programming excels at I/O-bound tasks (DB calls, APIs, network I/O).
+
+If the task is CPU-heavy, non-blocking won’t help because the event loop will be blocked anyway.
+
+Example:
+
+Image processing, encryption, video transcoding.
+
+These tasks are better handled in parallel threads or Executors, not reactive streams.
+
+3️⃣ Legacy or Blocking Libraries
+
+If you rely on blocking libraries (JDBC, old HTTP clients), reactive programming won’t magically make them non-blocking.
+
+Using reactive with blocking calls can degrade performance.
+
+Solution: Use R2DBC for DB or WebClient (non-blocking HTTP).
+
+4️⃣ Teams Not Familiar with Reactive Paradigm
+
+Reactive programming has a steep learning curve.
+
+If the team is not experienced, it can lead to bugs, maintenance headaches, and poor performance.
+
+5️⃣ Simple CRUD APIs
+
+If your system is just simple CRUD operations with minimal concurrency, Spring MVC + @Async or CompletableFuture is simpler and easier to maintain.
+
+⚡ Summary Table
+Scenario	Use Reactive?	Recommendation
+Small app / few users	❌	Simple synchronous or async methods
+CPU-heavy tasks	❌	Use parallel threads or ExecutorService
+Blocking legacy libraries	❌	Stick to blocking or use async wrappers
+Team unfamiliar	❌	Train team first, or use simpler async
+High-concurrency I/O-bound API	✅	Use reactive (WebFlux + Reactor)
+✅ Interview Answer (30–40 sec)
+
+Reactive programming is not ideal for CPU-bound tasks, small/simple apps, or systems that rely on blocking libraries.
+It’s best suited for I/O-heavy, high-concurrency applications.
+ For simple CRUD APIs or when the team is inexperienced with reactive paradigms, it’s better to use @Async or CompletableFuture.
+
+ Reactive programming is a non-blocking, event-driven approach to handle streams of data asynchronously. In Java, it is mainly implemented using Project Reactor and Spring WebFlux. It is designed for high-concurrency, I/O-heavy applications.
+
+ 1️⃣ Key Concepts
+ Concept	Explanation
+ Publisher	Produces data asynchronously. (Mono or Flux)
+ Subscriber	Consumes data emitted by the Publisher.
+ Mono	Emits 0 or 1 item (single result).
+ Flux	Emits 0 to N items (stream of results).
+ Backpressure	Mechanism to handle data overflow when producer is faster than consumer.
+ 2️⃣ Mono Example (Single Result)
+ import reactor.core.publisher.Mono;
+
+ public class MonoExample {
+     public static void main(String[] args) {
+
+         Mono<String> mono = Mono.just("Hello Reactive");
+
+         mono.subscribe(System.out::println); // prints "Hello Reactive"
+     }
+ }
+
+ Mono.just() → creates a reactive stream with one item
+
+ subscribe() → consumes the data
+
+ 3️⃣ Flux Example (Multiple Items)
+ import reactor.core.publisher.Flux;
+
+ public class FluxExample {
+     public static void main(String[] args) {
+
+         Flux<String> flux = Flux.just("A", "B", "C");
+
+         flux.subscribe(System.out::println); // prints A B C
+     }
+ }
+
+ Useful for streaming multiple items (e.g., transaction lists).
+
+ 4️⃣ Chaining and Transforming
+
+ Reactive streams allow functional chaining:
+
+ Flux.just(1, 2, 3, 4)
+     .map(i -> i * 2)
+     .filter(i -> i > 4)
+     .subscribe(System.out::println);
+
+ Output:
+
+ 6
+ 8
+
+ map() transforms data
+
+ filter() filters items
+
+ Everything is non-blocking
+
+ 5️⃣ WebFlux Example (Reactive REST API)
+ @RestController
+ public class UserController {
+
+     @GetMapping("/users")
+     public Flux<String> getUsers() {
+         return Flux.just("Alice", "Bob", "Charlie"); // reactive stream
+     }
+ }
+
+ Spring WebFlux automatically streams results non-blockingly
+
+ Handles thousands of concurrent requests without spawning threads per request
+
+ 6️⃣ Why Use Reactive Programming
+
+ ✅ Handles high-concurrency, I/O-heavy workloads
+ ✅ Non-blocking → better resource utilization
+ ✅ Backpressure support → prevents system overload
+ ✅ Ideal for microservices and streaming APIs
+
+ 7️⃣ When NOT to Use
+
+ CPU-heavy tasks
+
+ Small, simple applications
+
+ Blocking legacy libraries (e.g., JDBC without R2DBC)
+
+ Teams not familiar with reactive paradigms
+
+ 8️⃣ Real-World Banking Example
+
+ Use case: Live transaction stream on dashboard
+
+ Flux<Transaction> transactions = transactionService.streamTransactions(userId);
+
+ transactions
+     .filter(t -> t.getAmount() > 1000)
+     .map(t -> t.getSummary())
+     .subscribe(System.out::println);
+
+ Streams all transactions non-blocking
+
+ Filters and transforms data on-the-fly
+
+ Can support millions of concurrent users
+
+ 🎯 30-Second Interview Answer
+
+ Reactive programming in Java, implemented using Project Reactor and Spring WebFlux, is a non-blocking,
+  event-driven approach to handle asynchronous data streams.
+  Mono handles a single result, Flux handles multiple results.
+  It is ideal for I/O-heavy, high-concurrency systems like live dashboards or streaming APIs.
+  Unlike traditional threads, reactive systems use event loops, which improves scalability and resource efficiency.

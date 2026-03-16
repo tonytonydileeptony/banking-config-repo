@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import java.math.BigDecimal;
+import java.util.Map;
 
 @Service
 public class AccountClient {
@@ -18,7 +19,7 @@ public class AccountClient {
     public void credit(Long accountId, BigDecimal amount) {
 
         restClient.post()
-                .uri("/accounts/{id}/credit?amount={amount}", accountId, amount)
+                .uri("/accounts/{id}/credit?amount={amount}", Map.of("id", accountId, "amount", amount))
                 .retrieve()
                 .body(AccountResponseDto.class);
     }
@@ -26,7 +27,7 @@ public class AccountClient {
     public void debit(Long accountId, BigDecimal amount) {
 
         restClient.post()
-                .uri("/accounts/{id}/debit?amount={amount}", accountId, amount)
+                .uri("/accounts/{id}/debit?amount={amount}", Map.of("id", accountId, "amount", amount))
                 .retrieve()
                 .body(AccountResponseDto.class);
     }

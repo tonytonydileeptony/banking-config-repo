@@ -12,7 +12,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
-import static com.bank.production.transcation_service.dto.Status.SUCCESS;
+import com.bank.production.dto.Status;
+import com.bank.production.dto.TransactionEvent;
 
 @Service
 public class TransactionService {
@@ -51,14 +52,14 @@ public class TransactionService {
         txn.setFromAccountId(request.getFromAccountId());
         txn.setToAccountId(request.getToAccountId());
         txn.setAmount(request.getAmount());
-        txn.setStatus(SUCCESS);
+        txn.setStatus(Status.SUCCESS);
         txn.setCreatedAt(LocalDateTime.now());
         System.out.println("Transfer completed: " + txn.getAmount() + " from " + txn.getFromAccountId() + " to " + txn.getToAccountId());
          TransactionEntity transactionEntity=repository.saveAndFlush(txn);
       TransactionDto transactionDto=  mapToDto(transactionEntity);
         System.out.println(txn.getId()+"after dto maping" + transactionDto.getId());
         TransactionEvent event = new TransactionEvent();
-        mapToEvent(request, SUCCESS, LocalDateTime.now());
+        mapToEvent(request, Status.SUCCESS, LocalDateTime.now());
         producer.publish(event);
         return transactionDto;
     }

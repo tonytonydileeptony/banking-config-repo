@@ -1,6 +1,6 @@
 package com.bank.production.transcation_service.model;
 
-import com.bank.production.transcation_service.dto.Status;
+import com.bank.production.dto.Status;
 import jakarta.persistence.*;
 
 import java.io.Serializable;

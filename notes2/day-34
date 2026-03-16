@@ -1,0 +1,123 @@
+Day 34 – OpenFeign Client (Spring Cloud)
+
+OpenFeign is a declarative REST client that simplifies communication between microservices in a Spring Boot ecosystem.
+Instead of writing RestTemplate or WebClient code, you just define an interface and OpenFeign handles the REST calls automatically.
+
+OpenFeign is part of Spring Cloud OpenFeign and works smoothly with Netflix Eureka for service discovery.
+
+1️⃣ Add OpenFeign Dependency
+
+Add the dependency in pom.xml:
+
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-openfeign</artifactId>
+</dependency>
+
+Also ensure Spring Cloud dependency management is configured.
+
+2️⃣ Enable Feign Client
+
+In your main Spring Boot class, enable Feign clients.
+
+import org.springframework.cloud.openfeign.EnableFeignClients;
+
+@SpringBootApplication
+@EnableFeignClients
+public class OrderServiceApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(OrderServiceApplication.class, args);
+    }
+}
+
+This tells Spring Boot to scan for Feign interfaces.
+
+3️⃣ Create Feign Client Interface
+
+Example: Order Service calling Product Service.
+
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+
+@FeignClient(name = "product-service")
+public interface ProductClient {
+
+    @GetMapping("/products/{id}")
+    Product getProductById(@PathVariable Long id);
+}
+Explanation
+
+@FeignClient(name="product-service")
+
+The name must match the service name registered in Eureka.
+
+Feign automatically resolves the service location.
+
+4️⃣ Use the Feign Client in a Service
+@Service
+public class OrderService {
+
+    private final ProductClient productClient;
+
+    public OrderService(ProductClient productClient) {
+        this.productClient = productClient;
+    }
+
+    public Product getProduct(Long id) {
+        return productClient.getProductById(id);
+    }
+}
+
+Now Order Service → calls → Product Service automatically.
+
+5️⃣ Example Controller
+@RestController
+@RequestMapping("/orders")
+public class OrderController {
+
+    private final OrderService orderService;
+
+    public OrderController(OrderService orderService) {
+        this.orderService = orderService;
+    }
+
+    @GetMapping("/product/{id}")
+    public Product getProduct(@PathVariable Long id) {
+        return orderService.getProduct(id);
+    }
+}
+6️⃣ Flow of Communication
+Client Request
+     ↓
+Order Service
+     ↓
+Feign Client
+     ↓
+Product Service (via Eureka)
+     ↓
+Response returned
+7️⃣ Advantages of OpenFeign
+
+✅ Less boilerplate code
+✅ Easy microservice communication
+✅ Integrates with Eureka
+✅ Supports load balancing
+✅ Supports fallback with Resilience4j
+
+💡 Simple Comparison
+
+Method	Code Required	Difficulty
+RestTemplate	High	Medium
+WebClient	Medium	Medium
+OpenFeign	Very Low	Easy
+
+✅ Summary
+
+Add OpenFeign dependency
+
+Enable @EnableFeignClients
+
+Create interface with @FeignClient
+
+Call other microservices easily

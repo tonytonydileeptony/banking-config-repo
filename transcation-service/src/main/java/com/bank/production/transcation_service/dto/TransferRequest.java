@@ -4,7 +4,7 @@ import com.bank.production.transcation_service.exception.NoSelfTransfer;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-
+import com.bank.production.dto.Status;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 

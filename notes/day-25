@@ -1,0 +1,1013 @@
+Day 25 – OAuth2 + Refresh Tokens 🔑
+
+OAuth2 is the industry-standard protocol for authorization, widely used in APIs, microservices, and web/mobile apps. Refresh tokens complement OAuth2 to enable long-lived sessions securely.
+
+1️⃣ What is OAuth2?
+
+OAuth2 is a framework for delegated authorization, allowing one application to access resources on behalf of a user, without exposing user credentials.
+
+Key Roles:
+
+Role	Description
+Resource Owner	User who owns the data
+Client	Application requesting access
+Authorization Server	Issues access/refresh tokens
+Resource Server	Hosts the protected resource/API
+OAuth2 is an authorization framework that allows an application to access a user’s resources on another service without sharing the user’s password.
+
+Instead of giving credentials to every application, the user grants permission using tokens.
+
+Simple Definition
+
+OAuth2 is a protocol that allows third-party applications to access user data securely on behalf of the user, using access tokens instead of passwords.
+
+Why OAuth2 is Used
+
+OAuth2 solves a major security problem:
+
+Without OAuth2:
+
+User → gives username & password to third-party app
+
+Risk:
+
+Password exposure
+
+Third-party app could misuse credentials
+
+With OAuth2:
+
+User → Authorizes access → Access Token issued
+
+The app never sees the password.
+
+Example (Google Login)
+
+When you click “Login with Google”:
+
+1️⃣ App redirects to Google login
+2️⃣ User logs in to Google
+3️⃣ Google asks permission
+4️⃣ Google sends access token to the app
+5️⃣ App uses token to access user info
+
+User → Google Login → Authorization → Access Token → App
+Key Roles in OAuth2
+Role	Description
+Resource Owner	The user who owns the data
+Client	Application requesting access
+Authorization Server	Server that authenticates user and issues tokens
+Resource Server	API that stores protected data
+
+Example:
+
+User → Resource Owner
+Mobile App → Client
+Google Auth Server → Authorization Server
+Google API → Resource Server
+What OAuth2 Uses Instead of Passwords
+
+OAuth2 uses tokens:
+
+Token	Purpose
+Access Token	Used to call APIs
+Refresh Token	Used to get a new access token
+Real Banking Example 🏦
+
+A finance management app wants to read your bank transactions.
+
+Instead of giving your bank password, you:
+
+1️⃣ Login to the bank website
+2️⃣ Approve access for the finance app
+3️⃣ Bank issues an OAuth2 access token
+4️⃣ App uses the token to fetch transactions
+
+Your password stays safe.
+
+Advantages of OAuth2
+
+✅ Passwords are never shared
+✅ Secure delegated access
+✅ Works with APIs and microservices
+✅ Standard used by Google, Facebook, GitHub, etc.
+
+30-Second Interview Answer 🎯
+
+OAuth2 is an authorization framework that allows applications to access user resources on another service without sharing user credentials. It works by issuing access tokens after the user grants permission. These tokens are used to securely access APIs, making OAuth2 widely used in modern web applications and microservices.
+
+If you're following the Day-25 learning flow, the next concept is usually:
+
+2️⃣ OAuth2 Grant Types (Authorization Code, Client Credentials, etc.)
+
+This is one of the most common OAuth interview questions.
+2️⃣ OAuth2 Grant Types
+
+Common OAuth2 flows:
+
+Grant Type	Use Case
+Authorization Code	Web apps, server-side apps
+Implicit	Single Page Apps (SPAs)
+Client Credentials	Service-to-service APIs
+Resource Owner Password Credentials	Legacy apps (not recommended)
+Refresh Token	Renew expired access tokens without login
+
+Grant types define how a client application obtains an access token from the authorization server.
+Different grant types are designed for different kinds of applications (web apps, mobile apps, backend services).
+
+Main OAuth2 Grant Types
+Grant Type	Used For	Security Level
+Authorization Code	Web apps / Mobile apps	⭐⭐⭐⭐⭐ (Most secure)
+Client Credentials	Service-to-service APIs	⭐⭐⭐⭐
+Resource Owner Password Credentials	Legacy apps	⭐⭐ (Deprecated)
+Implicit	Single Page Apps (old)	❌ Deprecated
+1️⃣ Authorization Code Grant (Most Common)
+
+This is the most secure and recommended flow.
+
+Used by:
+
+Web applications
+
+Mobile apps
+
+Modern SPAs (with PKCE)
+
+Flow
+User → Login Page
+      ↓
+Authorization Server
+      ↓
+Authorization Code
+      ↓
+Client exchanges code
+      ↓
+Access Token + Refresh Token
+
+Steps:
+
+User logs in via authorization server
+
+Server returns authorization code
+
+Client exchanges code for access token
+
+Example apps:
+
+Google login
+
+Facebook login
+
+GitHub OAuth
+
+2️⃣ Client Credentials Grant
+
+Used for machine-to-machine communication.
+
+Example:
+
+Microservice → call another microservice
+
+Backend → third-party API
+
+Flow
+Client → Authorization Server
+       (client_id + client_secret)
+       ↓
+Access Token
+       ↓
+Call API
+
+No user involved.
+
+Example:
+
+Payment service calling fraud detection API
+
+3️⃣ Resource Owner Password Credentials Grant (Legacy)
+
+Client sends username and password directly.
+
+User → Client App
+      ↓
+Client sends username/password
+      ↓
+Authorization Server
+      ↓
+Access Token
+
+Problems:
+
+❌ Client sees user password
+❌ Security risk
+
+Because of this, it is deprecated in modern OAuth2 implementations.
+
+4️⃣ Implicit Grant (Deprecated)
+
+Used by old Single Page Applications.
+
+Access token was returned directly in browser URL.
+
+Authorization Server
+        ↓
+Access Token (in redirect URL)
+
+Problems:
+
+❌ Token exposed in browser
+❌ No refresh token support
+
+Now replaced by:
+
+👉 Authorization Code + PKCE
+
+Visual Comparison
+Authorization Code → User login → Code → Token
+Client Credentials → Service → Token
+Password Grant → Username/password → Token
+Implicit → Token directly in browser
+Real Banking Example 🏦
+Scenario	Grant Type
+Customer logs into banking web app	Authorization Code
+Bank service calling fraud detection API	Client Credentials
+Legacy mobile banking app	Password Grant (old)
+🎯 Interview Answer (30 sec)
+
+OAuth2 grant types define how a client obtains an access token. The main types are Authorization Code, Client Credentials, Resource Owner Password Credentials, and Implicit. Authorization Code is the most secure and widely used for web and mobile apps, Client Credentials is used for service-to-service communication, while Password and Implicit grants are largely deprecated due to security concerns.
+3️⃣ Access Token vs Refresh Token
+Token Type	Lifetime	Purpose
+Access Token	Short-lived (minutes to hours)	Access APIs/resources
+Refresh Token	Long-lived (days to months)	Get new access tokens without re-login
+
+Flow:
+
+User logs in → receives access token + refresh token
+
+Access token used for API requests
+
+When access token expires → client sends refresh token to get a new access token
+Access Token vs Refresh Token in OAuth 2.0 🔐
+
+In OAuth2 authentication systems, two important tokens are used:
+
+Access Token
+
+Refresh Token
+
+They work together to provide secure and seamless authentication.
+
+1️⃣ Access Token
+
+An access token is used by the client to access protected resources (APIs).
+
+Characteristics
+
+Short-lived (minutes to hours)
+
+Sent with every API request
+
+Usually implemented as JSON Web Token
+
+Contains user claims (ID, role, permissions)
+
+Example Request
+GET /api/account/balance
+Authorization: Bearer ACCESS_TOKEN
+Example Payload
+{
+  "sub": "user123",
+  "role": "CUSTOMER",
+  "exp": 1710000000
+}
+2️⃣ Refresh Token
+
+A refresh token is used to generate a new access token when the old one expires, without requiring the user to log in again.
+
+Characteristics
+
+Long-lived (days to months)
+
+Sent only to the authorization server
+
+Not used for accessing APIs directly
+
+Often stored securely (database or secure cookie)
+
+Example Refresh Request
+POST /oauth/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=refresh_token
+refresh_token=REFRESH_TOKEN
+client_id=xyz
+
+Server response:
+
+{
+  "access_token": "NEW_ACCESS_TOKEN",
+  "expires_in": 3600
+}
+3️⃣ Why Both Tokens Are Needed
+
+If only access tokens were used:
+
+❌ Users would need to log in frequently
+
+If only long-lived tokens were used:
+
+❌ High security risk if stolen
+
+Solution:
+
+✔ Short-lived access tokens
+✔ Long-lived refresh tokens
+
+4️⃣ Full Token Flow
+User Login
+   ↓
+Authorization Server
+   ↓
+Access Token (15 min)
+Refresh Token (7 days)
+   ↓
+Client calls API using Access Token
+   ↓
+Access Token expires
+   ↓
+Client sends Refresh Token
+   ↓
+Authorization Server issues new Access Token
+5️⃣ Real Banking Example 🏦
+
+Mobile banking app:
+
+Token	Lifetime	Purpose
+Access Token	15 minutes	Call banking APIs
+Refresh Token	7 days	Get new access tokens
+
+Flow:
+
+Login → Tokens issued
+      ↓
+Call /account/balance
+      ↓
+Access token expires
+      ↓
+Use refresh token
+      ↓
+New access token issued
+
+User doesn't need to log in again.
+
+6️⃣ Security Best Practices
+
+✔ Use short-lived access tokens
+✔ Store refresh tokens securely (HTTP-only cookies)
+✔ Use refresh token rotation
+✔ Revoke refresh tokens on logout
+✔ Always use HTTPS
+
+🎯 Interview Answer (30 seconds)
+
+In OAuth2, an access token is a short-lived token used to access protected APIs, while a refresh token is a long-lived token used to obtain new access tokens without requiring the user to log in again. Access tokens improve security by limiting their lifetime, and refresh tokens improve user experience by maintaining sessions.
+
+✅ The next important concept after this (often asked in interviews) is:
+
+4️⃣ OAuth2 Authorization Code Flow with PKCE
+
+This is the modern secure flow used by Google, Microsoft, and banking apps.
+
+4️⃣ OAuth2 Flow with Refresh Tokens
+Step-by-Step
+
+Authorization Request – Client requests authorization from the user
+
+Authorization Grant – User approves access → server issues authorization code
+
+Access + Refresh Tokens – Client exchanges code for tokens
+
+Access Protected API – Client includes access token in Authorization: Bearer <token> header
+
+Refresh Token Flow – When access token expires:
+
+POST /token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=refresh_token&refresh_token=<REFRESH_TOKEN>&client_id=xyz
+
+Server validates refresh token → issues new access token
+This flow shows how a client obtains Access Tokens and Refresh Tokens, uses them to call APIs, and refreshes them when the access token expires.
+
+1️⃣ Step-by-Step OAuth2 Flow
+Step 1 — User Login & Authorization
+
+The user logs in through the Authorization Server.
+
+User → Client App → Authorization Server
+
+User approves permission for the client to access resources.
+
+Step 2 — Authorization Code Issued
+
+The authorization server sends an authorization code to the client.
+
+Authorization Server → Client
+Authorization Code
+
+This code is temporary and short-lived.
+
+Step 3 — Exchange Code for Tokens
+
+The client sends the authorization code to the authorization server to obtain tokens.
+
+POST /oauth/token
+grant_type=authorization_code
+code=AUTH_CODE
+client_id=client123
+client_secret=secret
+
+Server response:
+
+{
+  "access_token": "ACCESS_TOKEN",
+  "refresh_token": "REFRESH_TOKEN",
+  "expires_in": 3600
+}
+2️⃣ Access API Using Access Token
+
+Client calls the resource server using the access token.
+
+GET /api/account/balance
+Authorization: Bearer ACCESS_TOKEN
+
+Resource server validates the token and returns the response.
+
+3️⃣ Access Token Expires
+
+Access tokens are short-lived.
+
+Example:
+
+Access Token Lifetime = 15 minutes
+
+When it expires, the API will return:
+
+401 Unauthorized
+4️⃣ Use Refresh Token to Get New Access Token
+
+Instead of asking the user to log in again, the client sends the refresh token.
+
+POST /oauth/token
+grant_type=refresh_token
+refresh_token=REFRESH_TOKEN
+client_id=client123
+
+Server response:
+
+{
+  "access_token": "NEW_ACCESS_TOKEN",
+  "expires_in": 3600
+}
+5️⃣ Continue API Requests
+
+Client now uses the new access token.
+
+Client → API with new Access Token
+
+User session continues without logging in again.
+
+Visual Flow
+User Login
+   ↓
+Authorization Server
+   ↓
+Authorization Code
+   ↓
+Access Token + Refresh Token
+   ↓
+Client calls APIs with Access Token
+   ↓
+Access Token expires
+   ↓
+Client sends Refresh Token
+   ↓
+New Access Token issued
+   ↓
+Client continues API calls
+Real Banking Example 🏦
+
+Mobile banking app:
+
+1️⃣ User logs in
+2️⃣ Server issues:
+
+Access Token → valid for 15 minutes
+
+Refresh Token → valid for 7 days
+
+3️⃣ App calls banking APIs using access token
+4️⃣ After expiration → refresh token is used to get a new access token
+
+This avoids frequent login prompts while maintaining security.
+
+Security Best Practices
+
+✔ Use short-lived access tokens
+✔ Store refresh tokens securely
+✔ Implement refresh token rotation
+✔ Revoke tokens on logout
+✔ Use HTTPS for all token communication
+
+🎯 Interview Answer (30 seconds)
+
+In OAuth2, the client first obtains an authorization code after the user logs in. The client exchanges this code for an access token and refresh token. The access token is used to access APIs and is short-lived. When it expires, the client sends the refresh token to the authorization server to obtain a new access token without requiring the user to log in again.
+
+If you want, I can also explain OAuth2 Authorization Code Flow with PKCE, which is the most secure flow used in modern mobile apps and SPAs (Google, Microsoft, banking apps).
+
+5️⃣ Example: Banking API 🏦
+
+User logs in → receives access token (15 min) + refresh token (7 days)
+
+Access token used to call /account/balance
+
+Token expires → client calls /token with refresh token → new access token issued
+
+Secure: refresh token stored securely (HTTP-only cookie or secure storage)
+
+6️⃣ Advantages of Using Refresh Tokens
+
+✅ Short-lived access tokens reduce risk if stolen
+✅ Avoids asking the user to log in repeatedly
+✅ Works well for stateless APIs and microservices
+✅ Enables scalable, secure session management
+A refresh token is used to obtain a new access token when the current one expires, without requiring the user to log in again. This provides both better security and better user experience.
+
+1️⃣ Improved Security 🔐
+
+Access tokens are short-lived (for example 10–15 minutes).
+
+If an attacker steals an access token:
+
+It will expire quickly
+
+Damage is limited
+
+Refresh tokens allow issuing new access tokens without making the access token long-lived.
+
+2️⃣ Better User Experience 👤
+
+Without refresh tokens:
+
+Access Token expires → User must log in again
+
+With refresh tokens:
+
+Access Token expires → Client uses Refresh Token → New Access Token issued
+
+Users stay logged in longer without repeated authentication.
+
+3️⃣ Reduced Login Requests
+
+Refresh tokens reduce the number of authentication operations.
+
+Example:
+
+Without refresh tokens:
+
+User logs in every 15 minutes
+
+With refresh tokens:
+
+User logs in once → refresh token maintains session
+
+This reduces load on authentication servers.
+
+4️⃣ Enables Secure Long Sessions
+
+Refresh tokens allow applications to maintain long user sessions securely.
+
+Example:
+
+Token	Lifetime
+Access Token	15 minutes
+Refresh Token	7 days
+
+The system stays secure while allowing persistent login.
+
+5️⃣ Supports Token Rotation 🔄
+
+Refresh tokens can be rotated.
+
+Flow:
+
+Refresh Token → Request new access token
+               ↓
+Server returns new Access Token + new Refresh Token
+
+If a refresh token is stolen, rotation helps detect misuse.
+
+6️⃣ Works Well with Microservices
+
+In microservice architectures:
+
+Access tokens are used by APIs
+
+Refresh tokens are handled by the authorization server
+
+This keeps APIs stateless and scalable.
+
+7️⃣ Real Banking Example 🏦
+
+Mobile banking app:
+
+1️⃣ User logs in once
+2️⃣ Server issues:
+
+Access Token → valid for 15 minutes
+
+Refresh Token → valid for 7 days
+
+3️⃣ When the access token expires:
+
+App → Authorization Server
+    → sends Refresh Token
+    → receives new Access Token
+
+User continues using the app without logging in again.
+
+🎯 Interview Answer (Short)
+
+Refresh tokens allow applications to obtain new access tokens without requiring users to log in again. They improve security by keeping access tokens short-lived while maintaining long user sessions. Refresh tokens also reduce authentication load and support secure token rotation.
+
+✅ If you're continuing your backend security learning path, the next important topic usually is:
+1️⃣ HTTPS (Secure Communication)
+
+HTTPS is HTTP over TLS encryption, ensuring that communication between client and server is secure.
+
+Why HTTPS is Important
+
+Without HTTPS:
+
+Client → HTTP → Server
+
+Data can be intercepted (Man-in-the-Middle attack).
+
+With HTTPS:
+
+Client → Encrypted TLS → Server
+
+Data is encrypted.
+
+Benefits
+
+✅ Encrypts data in transit
+✅ Prevents data tampering
+✅ Protects authentication tokens (JWT, OAuth tokens)
+
+Example API call:
+
+https://api.bank.com/account/balance
+2️⃣ CORS (Cross-Origin Resource Sharing)
+
+CORS controls which domains are allowed to access your API.
+
+Example problem:
+
+Frontend: https://app.example.com
+API: https://api.example.com
+
+Browsers block cross-origin requests unless allowed.
+
+CORS response headers:
+
+Access-Control-Allow-Origin: https://app.example.com
+Access-Control-Allow-Methods: GET, POST
+Access-Control-Allow-Headers: Authorization
+Spring Boot Example
+@Configuration
+public class CorsConfig {
+
+    @Bean
+    public WebMvcConfigurer corsConfigurer() {
+        return new WebMvcConfigurer() {
+            public void addCorsMappings(CorsRegistry registry) {
+                registry.addMapping("/api/**")
+                        .allowedOrigins("https://app.example.com")
+                        .allowedMethods("GET", "POST", "PUT", "DELETE");
+            }
+        };
+    }
+}
+3️⃣ CSRF (Cross-Site Request Forgery)
+
+CSRF occurs when a malicious website tricks a user into making unwanted requests.
+
+Example attack:
+
+User logged into bank
+↓
+User visits malicious site
+↓
+Malicious site sends request
+POST /transfer-money
+
+Bank server thinks the request is legitimate.
+
+Protection Methods
+
+✔ CSRF Tokens
+✔ SameSite cookies
+✔ Use JWT in Authorization header
+
+Spring Security example:
+
+http.csrf().disable();
+
+(Usually disabled for stateless JWT APIs)
+
+4️⃣ Rate Limiting
+
+Rate limiting restricts the number of API requests a client can make.
+
+Example:
+
+Max 100 requests per minute per user
+
+This prevents:
+
+❌ DDoS attacks
+❌ API abuse
+❌ brute-force login attempts
+
+Common algorithms:
+
+Algorithm	Description
+Token Bucket	Allows burst traffic
+Leaky Bucket	Smooths traffic flow
+Fixed Window	Simple request counting
+Sliding Window	More accurate rate control
+
+Example response:
+
+HTTP/1.1 429 Too Many Requests
+5️⃣ Combined API Security Architecture
+Client
+   ↓
+HTTPS (Encryption)
+   ↓
+API Gateway
+   ↓
+Rate Limiting
+   ↓
+Authentication (JWT / OAuth2)
+   ↓
+Authorization
+   ↓
+Backend Services
+
+This layered approach protects APIs from multiple attack vectors.
+
+6️⃣ Real Banking API Example 🏦
+
+A banking API might implement:
+
+Security Layer	Example
+HTTPS	Encrypt API communication
+CORS	Allow only banking frontend domain
+JWT	Authenticate users
+OAuth2	Authorization for third-party apps
+Rate Limiting	Prevent brute-force login
+CSRF Protection	Prevent forged transactions
+🎯 Interview Answer (30 seconds)
+
+API security involves protecting APIs using multiple mechanisms. HTTPS encrypts communication, CORS controls which domains can access the API, CSRF protection prevents unauthorized requests from malicious sites, and rate limiting prevents abuse and DDoS attacks. Together, these techniques secure modern APIs used in web and mobile applications.
+
+If you'd like, I can also show the complete Spring Boot production security architecture (JWT + OAuth2 + API Gateway + Rate Limiting) used in large-scale systems like banking or fintech platforms. It’s a very common system design interview topic.
+7️⃣ Security Best Practices
+
+Store refresh tokens securely
+
+Set expiration and rotation for refresh tokens
+
+Validate client ID / secret when using refresh token
+
+Consider revocation list for compromised tokens
+
+Always use HTTPS
+
+8️⃣ OAuth2 + JWT Integration
+
+Access tokens are usually JWTs
+
+JWT contains user claims and roles
+
+Resource servers validate the JWT and authorize access
+
+Refresh tokens are usually opaque tokens, stored securely
+
+9️⃣ Interview-Friendly Summary (30 sec)
+
+OAuth2 is a framework for delegated authorization, allowing clients to access resources on behalf of users without exposing passwords.
+Access tokens are short-lived and used to call APIs, while refresh tokens are long-lived and used to obtain new access tokens.
+This combination ensures secure, stateless, and scalable authentication and authorization, widely used in banking, microservices,
+and modern web/mobile apps.
+
+I can also create a diagram showing OAuth2 flow with access + refresh tokens, including login → token issuance → access API → refresh token usage, which is very handy for interviews.
+
+OAuth2 + Refresh Token Flow Diagram 🔄
+Flow Explained Step by Step
+
+User Login / Consent – User logs in and authorizes the client app.
+
+Client Requests Tokens – Client exchanges credentials or authorization code for access + refresh tokens.
+
+API Access with Access Token – Client calls API including Authorization: Bearer <access_token>.
+
+Access Token Expired – Client detects token expiration.
+
+Refresh Token Flow – Client sends refresh token to the authorization server.
+
+New Access Token Issued – Authorization server validates refresh token and issues a new access token (and sometimes a rotated refresh token).
+
+API Access Continues – Client uses new access token to continue calling APIs.
+
+When building secure backend APIs (Spring Boot, microservices, etc.), developers follow a set of security best practices to prevent attacks and protect user data.
+
+1️⃣ Always Use HTTPS
+
+Use HTTPS instead of HTTP to encrypt communication.
+
+Benefits:
+
+Prevents Man-in-the-Middle attacks
+
+Protects credentials and tokens
+
+Ensures data integrity
+
+Example:
+
+https://api.example.com/users
+
+Never expose APIs over plain HTTP in production.
+
+2️⃣ Use Strong Authentication
+
+Use modern authentication methods like:
+
+JSON Web Token
+
+OAuth 2.0
+
+API Keys (for internal services)
+
+Example:
+
+Authorization: Bearer JWT_TOKEN
+
+Avoid storing passwords or secrets in APIs.
+
+3️⃣ Implement Proper Authorization
+
+Authentication verifies who the user is, but authorization controls what they can access.
+
+Example roles:
+
+Role	Permission
+Admin	Manage users
+Customer	View own account
+Auditor	Read-only reports
+
+Always validate permissions before executing operations.
+
+4️⃣ Validate All Inputs
+
+Never trust user input.
+
+Protect against:
+
+SQL Injection
+
+Command Injection
+
+XSS attacks
+
+Example validation:
+
+@NotNull
+@Size(min = 3, max = 20)
+private String username;
+
+Also use prepared statements for database queries.
+
+5️⃣ Implement Rate Limiting
+
+Restrict the number of requests per client.
+
+Example:
+
+100 requests per minute per user
+
+Benefits:
+
+Prevents brute-force attacks
+
+Protects APIs from abuse
+
+Reduces server overload
+
+Common algorithm:
+
+Token Bucket
+
+6️⃣ Use Secure Token Storage
+
+Store authentication tokens securely:
+
+Platform	Storage Method
+Web Apps	HTTP-only cookies
+Mobile Apps	Secure storage
+Servers	Encrypted database
+
+Avoid storing tokens in localStorage when possible.
+
+7️⃣ Set Token Expiration
+
+Always set expiration for tokens.
+
+Example:
+
+Token	Lifetime
+Access Token	15 minutes
+Refresh Token	7 days
+
+Short-lived tokens reduce risk if stolen.
+
+8️⃣ Implement Logging and Monitoring
+
+Track security events like:
+
+Login attempts
+
+Token usage
+
+Failed authentication
+
+Example tools:
+
+ELK Stack
+
+Prometheus
+
+Cloud monitoring tools
+
+Logs help detect suspicious activity.
+
+9️⃣ Protect Against Common Attacks
+
+APIs should defend against:
+
+Attack	Prevention
+SQL Injection	Prepared statements
+CSRF	CSRF tokens
+XSS	Input sanitization
+DDoS	Rate limiting
+MITM	HTTPS
+🔟 Keep Dependencies Updated
+
+Many security vulnerabilities come from outdated libraries.
+
+Regularly update:
+
+Spring Boot
+
+Security libraries
+
+Database drivers
+
+Use tools like:
+
+Maven dependency check
+
+Security scanners
+
+Real Banking Example 🏦
+
+A banking API typically uses:
+
+HTTPS encryption
+
+JWT authentication
+
+OAuth2 for third-party apps
+
+Rate limiting for login endpoints
+
+Input validation for transactions
+
+Audit logs for security monitoring
+
+🎯 Interview Answer (Short)
+
+API security best practices include using HTTPS, implementing strong authentication like JWT or OAuth2, enforcing proper authorization, validating user input, applying rate limiting, securely storing tokens, setting token expiration, logging security events, and protecting against common attacks such as SQL injection and CSRF.

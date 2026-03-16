@@ -1,1 +1,3 @@
 org\example\Main.class
+com\bank\production\dto\Status.class
+com\bank\production\dto\TransactionEvent.class
