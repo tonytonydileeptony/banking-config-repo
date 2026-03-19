@@ -1,0 +1,197 @@
+Day 39 – Saga Pattern (Distributed Transaction)
+
+The Saga Pattern is a way to manage distributed transactions across multiple services without using a
+traditional ACID transaction (which doesn’t scale well in microservices).
+
+🔹 ❌ Problem
+
+In microservices:
+
+Each service has its own database
+
+You can’t use a single DB transaction across services
+
+👉 Example:
+
+Order Service ✅
+
+Payment Service ✅
+
+Inventory Service ❌
+
+Now system is inconsistent (payment taken, but no inventory)
+
+🔹 ✅ Solution: Saga Pattern
+
+A Saga is a sequence of local transactions, where:
+
+Each step updates its own service DB
+
+If something fails → compensating transactions undo previous steps
+
+🔹 🔄 Key Idea
+
+Instead of “rollback”, we use compensation
+
+🔹 Example (E-commerce Flow)
+Steps:
+
+Order Created
+
+Payment Processed
+
+Inventory Reserved
+
+Order Confirmed
+
+❌ Failure Scenario
+
+If Inventory fails:
+
+Cancel Payment 💸
+
+Cancel Order ❌
+
+🔹 🔧 Two Types of Saga
+1️⃣ Choreography-Based Saga (Event-driven)
+
+No central controller. Services react to events.
+
+🔄 Flow using Apache Kafka:
+
+Order Service → emits OrderCreated
+
+Payment Service → listens → emits PaymentCompleted
+
+Inventory Service → listens → emits success/failure
+
+✅ Pros
+
+Simple
+
+Fully decoupled
+
+Fits event-driven systems
+
+❌ Cons
+
+Hard to debug
+
+Logic is scattered
+
+Difficult to track flow
+
+2️⃣ Orchestration-Based Saga
+
+A central orchestrator controls the flow.
+
+🔄 Flow:
+
+Orchestrator calls:
+
+Payment Service
+
+Inventory Service
+
+Order Service
+
+Example tools:
+
+Temporal
+
+Camunda
+
+✅ Pros
+
+Easy to manage
+
+Clear flow
+
+Better monitoring
+
+❌ Cons
+
+Central dependency
+
+Slightly less flexible
+
+🔹 🔁 Compensation Transactions
+
+Each step must have a reverse action:
+
+Step	Compensation
+Payment success	Refund payment
+Inventory reserved	Release stock
+Order created	Cancel order
+
+👉 These must be:
+
+Idempotent
+
+Reliable
+
+🔹 🔥 Real Fintech Example
+Money Transfer:
+
+Debit Account A
+
+Credit Account B
+
+❌ If step 2 fails:
+
+Compensate → credit back Account A
+
+🔹 ⚠️ Challenges
+
+Designing correct compensations
+
+Handling partial failures
+
+Event ordering issues
+
+Debugging distributed flows
+
+🔹 🧠 Best Practices
+
+Use idempotency keys
+
+Combine with Outbox Pattern
+
+Add retry + DLQ
+
+Maintain audit logs
+
+Use timeouts & monitoring
+
+🔹 🆚 Saga vs 2PC (Two-Phase Commit)
+Feature	Saga	2PC
+Scalability	High	Low
+Coupling	Loose	Tight
+Performance	Better	Slower
+Rollback	Compensation	Atomic rollback
+
+👉 Modern systems prefer Saga over 2PC
+
+🔹 🧩 How it fits with previous topics
+
+Outbox Pattern → reliable event publishing
+
+Kafka → event communication
+
+Retry + DLQ → failure handling
+
+Idempotency → avoid duplicates
+
+🔹 🚀 Final Summary
+
+Saga = sequence of local transactions + compensations
+
+Ensures eventual consistency
+
+Two types:
+
+Choreography (event-driven)
+
+Orchestration (central control)
+
+Critical for microservices & fintech systems

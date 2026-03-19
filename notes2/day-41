@@ -1,0 +1,201 @@
+Day 41 – Idempotent Consumers
+
+In event-driven systems (especially with Apache Kafka), duplicate messages are inevitable.
+
+🔹 ❌ Problem
+
+A consumer may process the same event multiple times due to:
+
+Retries
+
+Network failures
+
+Consumer crashes before committing offset
+
+At-least-once delivery guarantees
+
+👉 Result: Duplicate side effects
+
+Double payment 💸
+
+Duplicate orders 📦
+
+Incorrect balances ⚠️
+
+🔹 ✅ Solution: Idempotent Consumer
+
+An idempotent consumer ensures that processing the same event multiple times produces the same result as processing it once.
+
+🔹 🧠 Core Idea
+
+👉 “Process once, ignore duplicates”
+
+🔹 🔧 Common Implementation Patterns
+1️⃣ Deduplication Table (Most Common)
+📌 Approach
+
+Store processed event IDs in DB.
+
+Example Table:
+processed_events
+----------------
+event_id (PK)
+processed_at
+Consumer Logic:
+public void handleEvent(Event event) {
+    if (processedEventRepo.exists(event.getId())) {
+        return; // duplicate → ignore
+    }
+
+    processBusinessLogic(event);
+
+    processedEventRepo.save(event.getId());
+}
+✅ Pros
+
+Simple
+
+Reliable
+
+Works in fintech
+
+❌ Cons
+
+Extra DB writes
+
+Table growth needs cleanup
+
+2️⃣ Idempotency Key (Business-Level)
+📌 Idea
+
+Use a unique business key (e.g., transaction_id)
+
+Example:
+{
+  "transaction_id": "TXN123",
+  "amount": 100
+}
+
+DB constraint:
+
+UNIQUE(transaction_id)
+
+👉 Duplicate inserts automatically fail
+
+✅ Pros
+
+Very efficient
+
+No extra table needed
+
+3️⃣ Upsert / Merge (State-based systems)
+
+Instead of “insert”, use:
+
+INSERT ... ON CONFLICT DO NOTHING
+
+OR
+
+UPSERT
+
+👉 Ensures same result even if repeated
+
+4️⃣ Cache-Based Deduplication (High throughput)
+
+Use:
+
+Redis (TTL-based)
+
+Flow:
+
+Store event ID in cache
+
+If exists → skip
+
+⚠️ Trade-off
+
+Faster
+
+But not 100% reliable (cache eviction)
+
+🔹 🔁 Where Idempotency is Critical
+
+Payments 💳
+
+Order processing 🛒
+
+Account balance updates 🏦
+
+Inventory management 📦
+
+👉 Especially in fintech → mandatory
+
+🔹 🔥 Real-world Flow (Kafka)
+
+Consumer reads event
+
+Checks event_id
+
+If new → process + store ID
+
+If duplicate → ignore
+
+🔹 ⚠️ Important Notes
+
+Kafka exactly-once ≠ business-level idempotency
+
+Always implement idempotency at consumer level
+
+Combine with:
+
+Outbox Pattern
+
+Retry + DLQ
+
+Saga Pattern
+
+🔹 🧩 Example (Payment System)
+
+Event received twice:
+
+PaymentCompleted (id=123)
+
+Without idempotency:
+
+Balance deducted twice ❌
+
+With idempotency:
+
+Second event ignored ✅
+
+🔹 🧠 Best Practices
+
+Use UUID for event_id
+
+Make operations idempotent by design
+
+Add unique constraints in DB
+
+Keep dedup table bounded (TTL/cleanup)
+
+Log duplicate detections
+
+🔹 🚀 Final Summary
+
+Duplicate events are normal
+
+Idempotent consumer = safe processing
+
+Techniques:
+
+Dedup table
+
+Idempotency key
+
+Upsert
+
+Cache
+
+👉 Golden Rule:
+
+“Never trust that an event will be delivered only once.”

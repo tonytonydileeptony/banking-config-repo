@@ -1,0 +1,431 @@
+Great 🚀 — Day 44 – API Versioning & Backward Compatibility is what separates a mid-level developer from a senior backend engineer.
+
+In real fintech systems, you CANNOT break existing clients (mobile apps, partners, payment gateways). That’s why versioning is critical.
+
+1️⃣ Why Versioning is Required?
+❌ Problem
+
+You have API:
+
+GET /accounts/{id}
+
+Response:
+
+{
+  "id": 1,
+  "balance": 1000
+}
+
+Now you change:
+
+{
+  "id": 1,
+  "balance": 1000,
+  "currency": "INR"
+}
+
+👉 Old clients may break ❌
+
+2️⃣ What is Backward Compatibility?
+
+👉 New changes should NOT break old clients
+
+✔ Old apps continue working
+✔ New apps use new features
+
+3️⃣ API Versioning Strategies
+🔹 1. URL Versioning (Most Common ✅)
+/v1/accounts
+/v2/accounts
+Example
+@RestController
+@RequestMapping("/v1/accounts")
+public class AccountControllerV1 {
+}
+@RestController
+@RequestMapping("/v2/accounts")
+public class AccountControllerV2 {
+}
+
+✔ Easy to understand
+✔ Widely used in industry
+
+🔹 2. Header Versioning
+GET /accounts
+Header: API-Version: v2
+🔹 3. Query Param Versioning
+/accounts?version=v2
+🔹 4. Content Negotiation
+Accept: application/vnd.bank.v2+json
+4️⃣ Which One Should YOU Use?
+
+👉 For your banking project:
+
+✅ Use URL versioning
+
+/api/v1/accounts
+/api/v2/accounts
+5️⃣ Real Example in Your Project
+V1 Response
+{
+  "id": 1,
+  "balance": 1000
+}
+V2 Response
+{
+  "id": 1,
+  "balance": 1000,
+  "currency": "INR",
+  "accountType": "SAVINGS"
+}
+6️⃣ Implementation Approach
+Step 1: Create DTOs
+public class AccountResponseV1 {
+    private Long id;
+    private BigDecimal balance;
+}
+public class AccountResponseV2 {
+    private Long id;
+    private BigDecimal balance;
+    private String currency;
+    private String accountType;
+}
+Step 2: Separate Controllers
+@RestController
+@RequestMapping("/api/v1/accounts")
+public class AccountControllerV1 {
+
+    @GetMapping("/{id}")
+    public AccountResponseV1 getAccount() {
+        return new AccountResponseV1(...);
+    }
+}
+@RestController
+@RequestMapping("/api/v2/accounts")
+public class AccountControllerV2 {
+
+    @GetMapping("/{id}")
+    public AccountResponseV2 getAccount() {
+        return new AccountResponseV2(...);
+    }
+}
+7️⃣ Backward Compatibility Rules (VERY IMPORTANT)
+✅ Additive Changes (SAFE)
+
+✔ Add new fields
+✔ Add optional params
+
+{
+  "id": 1,
+  "balance": 1000,
+  "currency": "INR"  // NEW FIELD
+}
+❌ Breaking Changes (AVOID)
+
+❌ Remove fields
+❌ Rename fields
+❌ Change data types
+
+8️⃣ API Evolution Strategy
+v1 → Stable
+v2 → New features
+v1 → Deprecated (after some time)
+Deprecation Example
+@Deprecated
+@GetMapping("/v1/accounts")
+public ...
+9️⃣ API Gateway Version Routing
+
+In your API Gateway:
+
+routes:
+  - id: account-v1
+    uri: lb://ACCOUNT-SERVICE
+    predicates:
+      - Path=/api/v1/accounts/**
+
+  - id: account-v2
+    uri: lb://ACCOUNT-SERVICE
+    predicates:
+      - Path=/api/v2/accounts/**
+🔟 Versioning in Microservices
+
+👉 Each service manages its own versions:
+
+Auth Service → /v1/auth
+Account Service → /v1/accounts
+Transaction Service → /v1/transactions
+1️⃣1️⃣ Real Production Practices
+🔹 Maintain Multiple Versions
+
+v1 (old clients)
+
+v2 (new clients)
+
+🔹 Sunset Policy
+v1 → supported for 6 months
+🔹 API Documentation
+
+Use:
+
+Swagger / OpenAPI
+
+🔹 Contract Testing
+
+Ensure:
+
+Client expectations == API response
+1️⃣2️⃣ Interview Questions
+❓ How do you handle API versioning?
+We use URL-based versioning and maintain backward compatibility
+by ensuring additive changes and avoiding breaking changes.
+❓ What is backward compatibility?
+
+👉 New versions don’t break existing clients
+
+❓ How do you deprecate APIs?
+
+👉 Mark old version deprecated and provide migration timeline
+
+1️⃣3️⃣ Common Mistakes
+
+❌ Directly modifying existing API
+❌ No versioning at all
+❌ Removing fields
+❌ Not informing clients
+
+🚀 Your Architecture Now
+Client → API Gateway → /v1 /v2 routes
+                         |
+                  Microservices
+                         |
+                      DB per service
+                         |
+                      Kafka
+🔥 You Are Now Senior Level
+
+You now understand:
+
+✔ API evolution
+✔ Backward compatibility
+✔ Versioning strategies
+✔ Real-world API design
+
+Here’s a step-by-step, production-style implementation of
+👉 API Versioning + Swagger (OpenAPI) + Documentation for your banking project (Spring Boot)
+
+I’ll keep it practical, clean, and interview-ready.
+
+🟣 Step 0 – What We’re Building
+
+You’ll end up with:
+
+/api/v1/accounts
+/api/v2/accounts
+
+And Swagger UI:
+
+/swagger-ui.html
+
+Using:
+
+Spring Boot
+
+Springdoc OpenAPI
+
+🟢 Step 1 – Add Dependencies
+Maven
+<dependency>
+    <groupId>org.springdoc</groupId>
+    <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+    <version>2.5.0</version>
+</dependency>
+🟢 Step 2 – Create Versioned DTOs
+public class AccountResponseV1 {
+    private Long id;
+    private BigDecimal balance;
+}
+public class AccountResponseV2 {
+    private Long id;
+    private BigDecimal balance;
+    private String currency;
+    private String accountType;
+}
+🟢 Step 3 – Create Versioned Controllers
+✅ V1 Controller
+@RestController
+@RequestMapping("/api/v1/accounts")
+@Tag(name = "Accounts V1", description = "Basic account APIs")
+public class AccountControllerV1 {
+
+    @Operation(summary = "Get account details (V1)")
+    @GetMapping("/{id}")
+    public AccountResponseV1 getAccount(@PathVariable Long id) {
+        return new AccountResponseV1(id, new BigDecimal("1000"));
+    }
+}
+✅ V2 Controller
+@RestController
+@RequestMapping("/api/v2/accounts")
+@Tag(name = "Accounts V2", description = "Advanced account APIs")
+public class AccountControllerV2 {
+
+    @Operation(summary = "Get account details with extra fields (V2)")
+    @GetMapping("/{id}")
+    public AccountResponseV2 getAccount(@PathVariable Long id) {
+        return new AccountResponseV2(
+            id,
+            new BigDecimal("1000"),
+            "INR",
+            "SAVINGS"
+        );
+    }
+}
+🟢 Step 4 – Swagger/OpenAPI Configuration
+@Configuration
+public class OpenAPIConfig {
+
+    @Bean
+    public OpenAPI bankingAPI() {
+        return new OpenAPI()
+            .info(new Info()
+                .title("Banking API")
+                .version("v1")
+                .description("API documentation for Banking System"));
+    }
+}
+🟢 Step 5 – Group APIs by Version (IMPORTANT)
+
+👉 This is what makes you senior-level
+
+@Bean
+public GroupedOpenApi v1Api() {
+    return GroupedOpenApi.builder()
+        .group("v1")
+        .pathsToMatch("/api/v1/**")
+        .build();
+}
+
+@Bean
+public GroupedOpenApi v2Api() {
+    return GroupedOpenApi.builder()
+        .group("v2")
+        .pathsToMatch("/api/v2/**")
+        .build();
+}
+
+👉 Swagger UI will show:
+
+v1 APIs
+
+v2 APIs
+
+🟢 Step 6 – Access Swagger UI
+
+Run app → open:
+
+http://localhost:8080/swagger-ui.html
+
+👉 You’ll see:
+
+Separate sections for V1 & V2
+
+All endpoints documented
+
+🟢 Step 7 – Add Detailed API Documentation
+Example:
+@Operation(
+    summary = "Get account by ID",
+    description = "Fetch account details including balance and metadata"
+)
+@ApiResponses(value = {
+    @ApiResponse(responseCode = "200", description = "Success"),
+    @ApiResponse(responseCode = "404", description = "Account not found")
+})
+🟢 Step 8 – Version Deprecation (Pro Level)
+@Deprecated
+@GetMapping("/{id}")
+public AccountResponseV1 getAccount() {
+}
+
+👉 Also document in Swagger:
+
+@Operation(summary = "Deprecated API", deprecated = true)
+🟢 Step 9 – Add Global API Metadata
+@Bean
+public OpenAPI customOpenAPI() {
+    return new OpenAPI()
+        .info(new Info()
+            .title("Banking API")
+            .version("v2")
+            .description("Production-grade banking APIs")
+            .contact(new Contact()
+                .name("Your Team")
+                .email("support@bank.com")));
+}
+🟢 Step 10 – Secure Swagger (IMPORTANT in Fintech)
+
+Disable in production:
+
+springdoc:
+  swagger-ui:
+    enabled: false
+
+OR protect with auth:
+
+Basic Auth
+
+OAuth2
+
+🟢 Step 11 – Real Project Structure
+controller/
+   v1/
+      AccountControllerV1
+   v2/
+      AccountControllerV2
+
+dto/
+   v1/
+   v2/
+
+config/
+   OpenAPIConfig
+🟢 Step 12 – Best Practices (Senior Level)
+
+✔ Maintain max 2 active versions
+✔ Never break existing APIs
+✔ Document everything in Swagger
+✔ Add examples in responses
+✔ Use meaningful descriptions
+✔ Keep DTOs versioned
+
+🟢 Step 13 – Bonus (Fintech-Level)
+
+👉 Combine with:
+
+API Gateway version routing
+
+Contract testing (Pact)
+
+Rate limiting
+
+Audit logs
+
+🧠 Interview Answer (Perfect)
+
+We implement API versioning using URL-based versioning (/api/v1, /api/v2).
+Each version has separate DTOs and controllers.
+We use Springdoc OpenAPI for API documentation and group APIs by version for clarity.
+Deprecated APIs are marked and supported for a defined period before removal.
+
+🚀 Final Outcome
+
+You now have:
+
+✔ Versioned APIs
+
+✔ Clean Swagger docs
+
+✔ Backward compatibility
+
+✔ Production-ready structure

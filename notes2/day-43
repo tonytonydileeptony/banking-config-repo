@@ -1,0 +1,411 @@
+Great 🚀 — Day 43 – Database per Service is one of the core principles of microservices, especially in fintech systems.
+
+You’re now moving from “building services” → to designing real scalable architecture.
+
+1️⃣ What is Database per Service?
+
+👉 Each microservice owns its own database
+👉 No other service can directly access it
+
+❌ Monolith Style (Wrong in Microservices)
+All services → One Shared DB
+
+Problems:
+
+Tight coupling ❌
+
+Breaking changes everywhere ❌
+
+Scaling issues ❌
+
+✅ Microservice Style
+Auth Service        → auth_db
+Account Service     → account_db
+Transaction Service → transaction_db
+Notification Service → notification_db
+
+👉 Each service = independent + isolated
+
+2️⃣ Why This is Critical in Banking
+
+In banking:
+
+User data 🔐
+
+Account balance 💰
+
+Transactions 📊
+
+👉 You must isolate data for:
+
+✔ Security
+✔ Scalability
+✔ Independent deployments
+
+3️⃣ Your Current System (Correct Design)
+
+You already have:
+
+auth-service        → authdb
+account-service     → accountdb
+transaction-service → transactiondb
+
+👉 This is exactly how fintech companies design systems
+
+4️⃣ Rule: No Direct DB Access
+
+🚫 Transaction service should NOT do:
+
+SELECT * FROM accountdb.accounts;
+✅ Correct Approach
+
+Use:
+
+REST API
+
+Feign Client
+
+Event (Kafka)
+
+Example
+Transaction Service → Account Service API
+debitAccount(accountId, amount)
+5️⃣ Communication Options
+🔹 1. Synchronous (REST / Feign)
+Transaction → Account → Response
+
+✔ Simple
+❌ Tight coupling
+
+🔹 2. Asynchronous (Kafka)
+Transaction → Kafka → Account / Notification
+
+✔ Scalable
+✔ Decoupled
+✔ Fault tolerant
+
+👉 Using Apache Kafka
+
+6️⃣ Data Consistency Problem
+
+👉 Big challenge:
+
+Transaction saved in transaction_db
+Account update failed in account_db
+
+❌ Inconsistent state
+
+7️⃣ Solutions (VERY IMPORTANT)
+🔹 1. Saga Pattern
+Step 1 → Debit
+Step 2 → Credit
+Step 3 → Save transaction
+
+If failure → rollback using compensating actions
+🔹 2. Outbox Pattern (You already implemented ✅)
+
+Ensures:
+
+✔ DB + Event consistency
+
+🔹 3. Eventual Consistency
+System becomes consistent over time
+
+👉 Acceptable in distributed systems
+
+8️⃣ Example Flow (Bank Transfer)
+1. Transaction Service → Create transfer
+2. Call Account Service → Debit
+3. Call Account Service → Credit
+4. Save transaction
+5. Publish event (Outbox)
+6. Notification Service → Send alert
+9️⃣ Database Design per Service
+Auth Service
+users
+roles
+tokens
+Account Service
+accounts
+balance
+account_status
+Transaction Service
+transactions
+status
+audit_logs
+Notification Service
+notifications
+status
+retry_count
+🔟 Real Production Enhancements
+🔹 Different DB Types per Service
+
+👉 Not all services use same DB
+
+Auth → MySQL
+Transactions → PostgreSQL
+Notifications → MongoDB
+Cache → Redis
+🔹 Read Models (CQRS)
+Write DB → Transaction DB
+Read DB → Optimized for queries
+🔹 API Gateway
+
+Central entry point:
+
+Client → API Gateway → Services
+1️⃣1️⃣ Common Interview Questions
+❓ Why DB per service?
+
+👉 Loose coupling + independent scaling
+
+❓ Can services share DB?
+
+👉 No (only in monolith or anti-pattern)
+
+❓ How do services communicate?
+
+👉 REST / Messaging
+
+❓ How to handle transactions?
+
+👉 Saga Pattern + Eventual consistency
+
+1️⃣2️⃣ Common Mistakes
+
+❌ Sharing DB across services
+❌ Direct DB queries between services
+❌ Strong consistency expectation
+❌ No retry / compensation
+
+1️⃣3️⃣ Final Architecture (Your Level Now)
+            API Gateway
+                 |
+   ---------------------------------
+   |        |        |             |
+Auth     Account   Transaction   Notification
+ DB        DB          DB            DB
+             |
+          Kafka
+🚀 What You Achieved
+
+You now understand:
+
+✔ Microservice isolation
+✔ DB per service principle
+✔ Distributed transactions
+✔ Eventual consistency
+✔ Real fintech architecture
+Here’s a real fintech-grade Saga Pattern implementation for a banking money transfer system:
+
+💸 Flow: Debit Account A → Credit Account B → If failure → Rollback (refund A)
+
+We’ll model this using an event-driven Saga with Apache Kafka + idempotency + DLQ + Outbox — exactly how production systems are built.
+
+🟣 🔹 System Overview
+Services:
+
+Transfer Service (Orchestrator)
+
+Debit Service
+
+Credit Service
+
+🔹 📦 Event Flow
+TransferRequested
+    ↓
+DebitAccount
+    ↓
+DebitSuccess / DebitFailed
+    ↓
+CreditAccount
+    ↓
+CreditSuccess / CreditFailed
+    ↓
+Rollback (if needed)
+🟢 Step 1: Transfer Request (Start Saga)
+{
+  "transaction_id": "TXN123",
+  "from_account": "A",
+  "to_account": "B",
+  "amount": 1000,
+  "status": "STARTED"
+}
+
+👉 Published to Kafka topic: transfer.requested
+
+🟡 Step 2: Debit Service
+Logic:
+public void handleDebit(TransferEvent event) {
+
+    if (alreadyProcessed(event.getTransactionId())) return; // idempotency
+
+    Account acc = accountRepo.find(event.getFromAccount());
+
+    if (acc.getBalance() < event.getAmount()) {
+        publish("debit.failed", event);
+        return;
+    }
+
+    acc.debit(event.getAmount());
+    accountRepo.save(acc);
+
+    publish("debit.success", event);
+}
+🟢 Step 3: Credit Service
+public void handleCredit(TransferEvent event) {
+
+    if (alreadyProcessed(event.getTransactionId())) return;
+
+    Account acc = accountRepo.find(event.getToAccount());
+
+    acc.credit(event.getAmount());
+    accountRepo.save(acc);
+
+    publish("credit.success", event);
+}
+🔴 Step 4: Failure Scenario (Critical)
+❌ Case: Credit Fails
+
+Debit already done
+
+Credit fails due to DB error
+
+👉 System must rollback debit
+
+🔁 Step 5: Compensation (Rollback)
+Refund Logic:
+public void handleCreditFailure(TransferEvent event) {
+
+    Account acc = accountRepo.find(event.getFromAccount());
+
+    acc.credit(event.getAmount()); // refund
+    accountRepo.save(acc);
+
+    publish("transfer.failed", event);
+}
+🔹 🔄 Event Flow with Failure
+TransferRequested
+    ↓
+DebitSuccess
+    ↓
+CreditFailed ❌
+    ↓
+Refund (Compensation)
+    ↓
+TransferFailed
+🔹 🧠 Idempotency (CRITICAL)
+
+Every service must ensure:
+
+if (processed(transaction_id)) return;
+
+Use:
+
+Dedup table
+
+OR unique constraint on transaction_id
+
+🔹 🟢 Outbox Pattern (No Data Loss)
+
+Each service:
+
+Writes DB change
+
+Writes event to outbox table
+
+Background publisher sends to Kafka
+
+👉 Guarantees:
+
+No lost events
+
+Perfect audit trail
+
+🔹 🔴 Retry + DLQ
+
+Temporary failure → retry
+
+Permanent failure → DLQ
+
+Topics:
+
+transfer.main
+transfer.retry
+transfer.dlq
+🔹 🟣 Orchestrator (Optional but recommended)
+
+Instead of pure choreography, use a central orchestrator:
+
+Example:
+if (event == DEBIT_SUCCESS) {
+    send("credit.request");
+}
+
+if (event == CREDIT_FAILED) {
+    send("rollback.debit");
+}
+
+👉 Tools like:
+
+Temporal
+
+Camunda
+
+🔹 🔥 Real Fintech Guarantees
+Requirement	Solution
+No money loss	Saga + Compensation
+No duplicate debit	Idempotency
+No missing events	Outbox Pattern
+Failure handling	Retry + DLQ
+Audit compliance	Event log
+🔹 ⚠️ Edge Cases (VERY IMPORTANT)
+1. Double Debit Risk
+
+👉 Prevent with idempotency
+
+2. Partial Failure
+
+👉 Always design compensation
+
+3. Network Crash After Debit
+
+👉 Outbox ensures event is still published
+
+4. Replay from DLQ
+
+👉 Safe because consumer is idempotent
+
+🔹 🧩 Final Architecture
+Client
+  ↓
+Transfer Service (Saga Orchestrator)
+  ↓
+Kafka (Events)
+  ↓
+Debit Service → DB + Outbox
+  ↓
+Credit Service → DB + Outbox
+  ↓
+Retry + DLQ
+  ↓
+Monitoring + Replay
+🚀 Final Takeaway
+
+👉 In banking systems:
+
+Consistency > Speed
+
+Use:
+
+Saga Pattern (for distributed transaction)
+
+Idempotency (avoid duplicates)
+
+Outbox (no data loss)
+
+DLQ (failure safety)
+
+🧠 Golden Rule (Fintech)
+
+“Every transaction must be traceable, reversible, and never lost.”
