@@ -1,6 +1,7 @@
 package com.bank.production.notification_service.service;
 
-import com.bank.production.notification_service.dto.TransactionEvent;
+//import com.bank.production.notification_service.dto.TransactionEvent;
+import com.bank.production.dto.TransactionEvent;
 import com.bank.production.notification_service.model.Notification;
 import com.bank.production.notification_service.repository.NotificationRepository;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -22,7 +23,7 @@ public class NotificationConsumer {
 
         Notification notification = new Notification();
         notification.setType("TRANSFER");
-        notification.setRecipient(event.getToAccount().toString());
+        notification.setRecipient(event.getToAccount());
         notification.setMessage(
                 "You received ₹" + event.getAmount());
         notification.setCreatedAt(LocalDateTime.now());

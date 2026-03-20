@@ -16,7 +16,7 @@ public class Notification {
 
     private String type;
     private String message;
-    private String recipient;
+    private Long recipient;
     private LocalDateTime createdAt;
 
     public Long getId() {
@@ -39,11 +39,11 @@ public class Notification {
         this.message = message;
     }
 
-    public String getRecipient() {
+    public Long getRecipient() {
         return recipient;
     }
 
-    public void setRecipient(String recipient) {
+    public void setRecipient(Long recipient) {
         this.recipient = recipient;
     }
 
