@@ -2,6 +2,26 @@ server:
   port: 8080
 
 spring:
+    cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+      routes:
+        - id: auth-server
+          uri: lb://AUTH-SERVER
+          predicates:
+            - Path=/auth/**
+
+        - id: account-service
+          uri: lb://ACCOUNT-SERVICE
+          predicates:
+            - Path=/accounts/**
+
+        - id: transcation-service
+          uri: lb://TRANSCATION-SERVICE
+          predicates:
+            - Path=/transactions/**
 eureka:
   client:
     service-url:
