@@ -19,7 +19,7 @@ spring:
             - Path=/accounts/**
 
         - id: transaction-service
-          uri: lb://TRANSCATION-SERVICE
+          uri: lb://TRANSACTION-SERVICE
           predicates:
             - Path=/transactions/**
 eureka:

@@ -71,6 +71,7 @@ public class TransactionController {
     }
     @PostMapping
     public ResponseEntity<ApiResponse<TransactionDto>> createTransaction(@Valid @RequestBody TransferRequest request) {
+       System.out.print("Received transfer request: " + request.getAmount() + " from " + request.getFromAccountId() + " to ") ;
         TransactionDto created = service.transfer(request);
         ApiResponse<TransactionDto> response =
                 new ApiResponse<>(
