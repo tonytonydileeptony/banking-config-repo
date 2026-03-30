@@ -36,7 +36,7 @@ cloud:
       secret-key: ${AWS_SECRET_ACCESS_KEY}
     region:
       static: ap-south-1
-
+#jrjhtjrkj
 # S3 bucket configuration
 aws:
   s3:
