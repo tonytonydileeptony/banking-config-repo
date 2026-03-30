@@ -23,3 +23,21 @@ eureka:
   instance:
     hostname: localhost
     prefer-ip-address: true
+
+# AWS Configuration - Credentials should be set as environment variables
+# Set the following environment variables in your deployment:
+# - AWS_ACCESS_KEY_ID
+# - AWS_SECRET_ACCESS_KEY
+# DO NOT hardcode credentials in this file
+cloud:
+  aws:
+    credentials:
+      access-key: ${AWS_ACCESS_KEY_ID:}
+      secret-key: ${AWS_SECRET_ACCESS_KEY:}
+    region:
+      static: ap-south-1
+
+# S3 bucket configuration
+aws:
+  s3:
+    bucket: trinatraomni
