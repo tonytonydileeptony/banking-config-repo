@@ -23,11 +23,8 @@ spring:
         secret-key: ${AWS_SECRET_ACCESS_KEY}
       region:
         static: ap-south-1
-
-    #
-
-    s3:
-      bucket: trinatraomni
+      s3:
+        bucket: trinatraomni
 eureka:
   client:
     service-url:
