@@ -16,6 +16,18 @@ spring:
         hibernate:
           dialect: org.hibernate.dialect.MySQL8Dialect
           format_sql: true
+  cloud:
+    aws:
+      credentials:
+        access-key: ${AWS_ACCESS_KEY_ID}
+        secret-key: ${AWS_SECRET_ACCESS_KEY}
+      region:
+        static: ap-south-1
+
+    #
+
+    s3:
+      bucket: trinatraomni
 eureka:
   client:
     service-url:
@@ -29,15 +41,4 @@ eureka:
 # - AWS_ACCESS_KEY_ID
 # - AWS_SECRET_ACCESS_KEY
 # DO NOT hardcode credentials in this file
-cloud:
-  aws:
-    credentials:
-      access-key: ${AWS_ACCESS_KEY_ID}
-      secret-key: ${AWS_SECRET_ACCESS_KEY}
-    region:
-      static: ap-south-1
 
-# S3 bucket configuration
-aws:
-  s3:
-    bucket: trinatraomni
