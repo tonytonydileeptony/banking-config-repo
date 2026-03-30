@@ -32,11 +32,11 @@ eureka:
 cloud:
   aws:
     credentials:
-      access-key: ${AWS_ACCESS_KEY_ID}
-      secret-key: ${AWS_SECRET_ACCESS_KEY}
+      access-key: ${AWS_ACCESS_KEY_ID:}
+      secret-key: ${AWS_SECRET_ACCESS_KEY:}
     region:
       static: ap-south-1
-#jrjhtjrkj
+
 # S3 bucket configuration
 aws:
   s3:
